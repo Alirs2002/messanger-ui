@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import  {MessageContextMenu}  from "./MessageContextMenu";
+
 import {
   Send,
   Paperclip,
@@ -25,6 +27,18 @@ export const ChatArea: React.FC = () => {
   } = useChatStore();
 
   const [inputText, setInputText] = useState("");
+  const [contextMenu, setContextMenu] = useState<{
+  isOpen: boolean;
+  x: number;
+  y: number;
+  message: any;
+}>({
+  isOpen: false,
+  x: 0,
+  y: 0,
+  message: null,
+});
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -45,6 +59,16 @@ export const ChatArea: React.FC = () => {
       inputRef.current?.focus();
     }
   }, [replyingTo]);
+
+  const handleContextMenu = (e: React.MouseEvent, message: any) => {
+  e.preventDefault(); // جلوگیری از باز شدن منوی دیفالت مرورگر
+  setContextMenu({
+    isOpen: true,
+    x: e.clientX,
+    y: e.clientY,
+    message: message,
+  });
+};
 
   // تابع پرش به پیام ریپلای‌شده و هایلایت موقت
   const scrollToMessage = (messageId: string | number) => {
@@ -128,6 +152,7 @@ export const ChatArea: React.FC = () => {
             <div
               key={msg.id}
               id={`message-${msg.id}`}
+              onContextMenu={(e) => handleContextMenu(e, msg)}
               className={`group flex items-end gap-1.5 transition-colors duration-300 rounded-xl p-1 ${
                 msg.isOutgoing ? "justify-end" : "justify-start"
               }`}
@@ -298,6 +323,17 @@ export const ChatArea: React.FC = () => {
             </button>
           </form>
         </footer>
+      )}
+            {contextMenu.isOpen && contextMenu.message && (
+        <MessageContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          message={contextMenu.message}
+          onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false }))}
+          onReply={(msg) => {
+            setReplyingTo(msg);
+          }}
+        />
       )}
     </main>
   );
