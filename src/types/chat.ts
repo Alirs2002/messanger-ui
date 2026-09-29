@@ -41,4 +41,5 @@ export interface ConversationItem {
   isPinned?: boolean;
   isOnline?: boolean;
   isVerified?: boolean;
+  isMuted?: boolean;
 }

@@ -35,6 +35,8 @@ interface ChatStore {
     message: MessageItem,
     fromChatTitle: string,
   ) => void;
+  deleteConversation: (conversationId: string | number) => void;
+  clearChat: (conversationId: string | number) => void;
 }
 
 const INITIAL_CONVERSATIONS: ConversationItem[] = [
@@ -191,7 +193,31 @@ export const useChatStore = create<ChatStore>((set) => ({
         replyingTo: null,
       };
     }),
+  deleteConversation: (conversationId) =>
+    set((state) => {
+      const idStr = String(conversationId);
+      const newMessages = { ...state.messages };
+      delete newMessages[idStr];
 
+      return {
+        conversations: state.conversations.filter(
+          (c) => String(c.id) !== idStr,
+        ),
+        messages: newMessages,
+        activeConversationId:
+          String(state.activeConversationId) === idStr
+            ? null
+            : state.activeConversationId,
+      };
+    }),
+
+  clearChat: (conversationId) =>
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [String(conversationId)]: [],
+      },
+    })),
   editMessage: (conversationId, messageId, newText) =>
     set((state) => {
       const currentMsgs = state.messages[conversationId] || [];
