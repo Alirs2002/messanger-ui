@@ -65,6 +65,29 @@ export const ChatArea: React.FC = () => {
     }
   }, [editingMessage]);
 
+  // اسکرول نرم به پیام مرجع ریپلای و های‌لایت کردن آن
+  const handleScrollToMessage = (messageId: string | number) => {
+    const targetElement = document.getElementById(`message-${messageId}`);
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      targetElement.classList.add(
+        "bg-amber-100/60",
+        "dark:bg-amber-900/30",
+        "p-1",
+        "rounded-2xl"
+      );
+      setTimeout(() => {
+        targetElement.classList.remove(
+          "bg-amber-100/60",
+          "dark:bg-amber-900/30",
+          "p-1",
+          "rounded-2xl"
+        );
+      }, 1200);
+    }
+  };
+
   // مدیریت منوی راست‌کلیک
   const handleContextMenu = (e: React.MouseEvent, message: MessageItem) => {
     e.preventDefault();
@@ -180,7 +203,10 @@ export const ChatArea: React.FC = () => {
             key={msg.id}
             onContextMenu={(e) => handleContextMenu(e, msg)}
           >
-            <MessageBubble message={msg} />
+            <MessageBubble
+              message={msg}
+              onReplyClick={handleScrollToMessage}
+            />
           </div>
         ))}
         <div ref={messagesEndRef} />

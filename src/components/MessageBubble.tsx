@@ -4,15 +4,20 @@ import type { MessageItem } from "../types/chat";
 
 interface MessageBubbleProps {
   message: MessageItem;
+  onReplyClick?: (replyMessageId: string | number) => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({
+  message,
+  onReplyClick,
+}) => {
   const { isOutgoing, text, createdAt, status, replyToMessage, senderName } =
     message;
 
   return (
     <div
-      className={`flex w-full ${
+      id={`message-${message.id}`}
+      className={`flex w-full transition-all duration-500 rounded-2xl ${
         isOutgoing ? "justify-end" : "justify-start"
       }`}
     >
@@ -30,13 +35,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           </span>
         )}
 
-        {/* باکس نمایش ریپلای */}
+        {/* باکس نمایش ریپلای (قابل کلیک) */}
         {replyToMessage && (
           <div
-            className={`mb-2 p-2 rounded-lg border-r-2 text-xs leading-tight ${
+            onClick={(e) => {
+              e.stopPropagation();
+              if (replyToMessage.id && onReplyClick) {
+                onReplyClick(replyToMessage.id);
+              }
+            }}
+            className={`mb-2 p-2 rounded-lg border-r-2 text-xs leading-tight cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all ${
               isOutgoing
-                ? "bg-black/15 border-white text-white/90"
-                : "bg-gray-100 dark:bg-gray-700/50 border-emerald-500 text-gray-600 dark:text-gray-300"
+                ? "bg-black/15 border-white text-white/90 hover:bg-black/25"
+                : "bg-gray-100 dark:bg-gray-700/50 border-emerald-500 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
             }`}
           >
             <span
