@@ -1,26 +1,49 @@
 import React from "react";
-import { Check, CheckCheck, Clock } from "lucide-react";
+import { Check, CheckCheck, Clock, Forward, Share2 } from "lucide-react";
 import type { MessageItem } from "../types/chat";
 
 interface MessageBubbleProps {
   message: MessageItem;
   onReplyClick?: (replyMessageId: string | number) => void;
+  isChannel?: boolean;
+  onForwardClick?: (message: MessageItem) => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   onReplyClick,
+  isChannel,
+  onForwardClick,
 }) => {
-  const { isOutgoing, text, createdAt, status, replyToMessage, senderName } =
-    message;
+  const {
+    isOutgoing,
+    text,
+    createdAt,
+    status,
+    replyToMessage,
+    senderName,
+    forwardFrom,
+  } = message;
 
   return (
     <div
       id={`message-${message.id}`}
-      className={`flex w-full transition-all duration-500 rounded-2xl ${
+      className={`flex w-full gap-2 transition-all duration-500 items-end ${
         isOutgoing ? "justify-end" : "justify-start"
       }`}
     >
+      {/* دکمه بازارسال برای پیام‌های ارسالی کانال */}
+      {isOutgoing && isChannel && onForwardClick && (
+        <button
+          onClick={() => onForwardClick(message)}
+          title="بازارسال سریع"
+          className="p-1.5 text-gray-400 hover:text-emerald-500 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-full transition mb-0.5"
+        >
+          <Share2 className="w-4 h-4 transform -scale-x-100" />
+        </button>
+      )}
+
+      {/* حباب پیام */}
       <div
         className={`relative max-w-[80%] sm:max-w-[70%] md:max-w-[60%] rounded-2xl px-3.5 py-2 text-sm shadow-sm transition-all ${
           isOutgoing
@@ -28,8 +51,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             : "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-br-none border border-gray-100 dark:border-gray-700/60"
         }`}
       >
+        {/* نمایش تگ بازارسال (فوروارد) */}
+        {(forwardFrom as any) && (
+          <div className="flex items-center space-x-1 space-x-reverse text-[11px] font-medium mb-1.5 pb-1 border-b border-black/10 dark:border-white/10 opacity-90">
+            <Forward className="w-3 h-3" />
+            <span>بازارسال از:</span>
+            <span className="font-semibold cursor-pointer truncate max-w-[120px]">
+              {(forwardFrom as any).chatTitle || (forwardFrom as any).name}
+            </span>
+          </div>
+        )}
+
         {/* نام فرستنده در چت‌های گروهی اگر پیام دریافتی باشد */}
-        {!isOutgoing && senderName && (
+        {!isOutgoing && senderName && !(forwardFrom as any) && (
           <span className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1">
             {senderName}
           </span>
@@ -52,7 +86,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           >
             <span
               className={`font-semibold block text-[11px] mb-0.5 ${
-                isOutgoing ? "text-emerald-100" : "text-emerald-600 dark:text-emerald-400"
+                isOutgoing
+                  ? "text-emerald-100"
+                  : "text-emerald-600 dark:text-emerald-400"
               }`}
             >
               پاسخ به{" "}
@@ -95,6 +131,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
         </div>
       </div>
+
+      {/* دکمه بازارسال برای پیام‌های دریافتی کانال */}
+      {!isOutgoing && isChannel && onForwardClick && (
+        <button
+          onClick={() => onForwardClick(message)}
+          title="بازارسال سریع"
+          className="p-1.5 text-gray-400 hover:text-emerald-500 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-full transition mb-0.5"
+        >
+          <Share2 className="w-4 h-4 transform -scale-x-100" />
+        </button>
+      )}
     </div>
   );
 };

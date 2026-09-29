@@ -19,16 +19,21 @@ interface ChatStore {
   replyingTo: MessageItem | null;
   setReplyingTo: (message: MessageItem | null) => void;
 
-  // اکشن‌های ارسال، ویرایش و حذف پیام
+  // اکشن‌های ارسال، ویرایش، حذف و فوروارد پیام
   sendMessage: (conversationId: string | number, text: string) => void;
   editMessage: (
     conversationId: string | number,
     messageId: string | number,
-    newText: string
+    newText: string,
   ) => void;
   deleteMessage: (
     conversationId: string | number,
-    messageId: string | number
+    messageId: string | number,
+  ) => void;
+  forwardMessage: (
+    targetConversationId: string | number,
+    message: MessageItem,
+    fromChatTitle: string,
   ) => void;
 }
 
@@ -125,11 +130,10 @@ export const useChatStore = create<ChatStore>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   activeConversationId: null,
 
-  // هنگام تغییر چت، استیت ریپلای ریست می‌شود
   setActiveConversation: (id) =>
     set((state) => {
       const updatedConversations = state.conversations.map((c) =>
-        c.id === id ? { ...c, unreadCount: 0 } : c
+        c.id === id ? { ...c, unreadCount: 0 } : c,
       );
       return {
         activeConversationId: id,
@@ -141,11 +145,9 @@ export const useChatStore = create<ChatStore>((set) => ({
   conversations: INITIAL_CONVERSATIONS,
   messages: INITIAL_MESSAGES,
 
-  // مدیریت ریپلای
   replyingTo: null,
   setReplyingTo: (message) => set({ replyingTo: message }),
 
-  // ارسال پیام جدید
   sendMessage: (conversationId, text) =>
     set((state) => {
       const timeNow = new Date().toLocaleTimeString("fa-IR", {
@@ -177,7 +179,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       const updatedConversations = state.conversations.map((c) =>
         c.id === conversationId
           ? { ...c, lastMessage: text, lastMessageTime: timeNow }
-          : c
+          : c,
       );
 
       return {
@@ -190,17 +192,15 @@ export const useChatStore = create<ChatStore>((set) => ({
       };
     }),
 
-  // ویرایش متن پیام
   editMessage: (conversationId, messageId, newText) =>
     set((state) => {
       const currentMsgs = state.messages[conversationId] || [];
       const updatedMsgs = currentMsgs.map((msg) =>
         String(msg.id) === String(messageId)
           ? { ...msg, text: newText, isEdited: true }
-          : msg
+          : msg,
       );
 
-      // اگر پیامی که ویرایش شد آخرین پیام مکالمه بود، متن پیش‌نمایش در سایدبار هم آپدیت شود
       const lastMsg = updatedMsgs[updatedMsgs.length - 1];
       const updatedConversations = state.conversations.map((c) => {
         if (
@@ -224,12 +224,11 @@ export const useChatStore = create<ChatStore>((set) => ({
       };
     }),
 
-  // حذف پیام
   deleteMessage: (conversationId, messageId) =>
     set((state) => {
       const currentMsgs = state.messages[conversationId] || [];
       const updatedMsgs = currentMsgs.filter(
-        (msg) => String(msg.id) !== String(messageId)
+        (msg) => String(msg.id) !== String(messageId),
       );
 
       const lastMsg = updatedMsgs[updatedMsgs.length - 1];
@@ -254,6 +253,45 @@ export const useChatStore = create<ChatStore>((set) => ({
           state.replyingTo && String(state.replyingTo.id) === String(messageId)
             ? null
             : state.replyingTo,
+      };
+    }),
+
+  // اکشن جدید برای بازارسال (Forward)
+  forwardMessage: (targetConversationId, message, fromChatTitle) =>
+    set((state) => {
+      const timeNow = new Date().toLocaleTimeString("fa-IR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const newMsg: MessageItem = {
+        id: Date.now(),
+        conversationId: targetConversationId,
+        senderId: 1,
+        text: message.text,
+        createdAt: timeNow,
+        isOutgoing: true,
+        status: "sent",
+        forwardFrom: {
+          id: message.id,
+          name: message.senderName || "ناشناس",
+          chatTitle: fromChatTitle,
+        },
+      };
+
+      const currentMsgs = state.messages[targetConversationId] || [];
+      const updatedConversations = state.conversations.map((c) =>
+        c.id === targetConversationId
+          ? { ...c, lastMessage: message.text, lastMessageTime: timeNow }
+          : c,
+      );
+
+      return {
+        messages: {
+          ...state.messages,
+          [targetConversationId]: [...currentMsgs, newMsg],
+        },
+        conversations: updatedConversations,
       };
     }),
 }));

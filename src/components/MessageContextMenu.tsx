@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Forward } from "lucide-react";
 import type { MessageItem } from "../types/chat";
 
 interface MessageContextMenuProps {
@@ -9,6 +10,7 @@ interface MessageContextMenuProps {
   onReply?: (message: MessageItem) => void;
   onEdit?: (message: MessageItem) => void;
   onDelete?: (message: MessageItem) => void;
+  onForward?: (message: MessageItem) => void; // اکشن جدید
 }
 
 export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
@@ -19,6 +21,7 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   onReply,
   onEdit,
   onDelete,
+  onForward,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
@@ -45,9 +48,13 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   }, [onClose]);
 
   const menuWidth = 160;
-  const menuHeight = 180;
-  const adjustedX = x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 10 : x;
-  const adjustedY = y + menuHeight > window.innerHeight ? window.innerHeight - menuHeight - 10 : y;
+  const menuHeight = 220; // ارتفاع را به دلیل اضافه شدن گزینه جدید کمی بیشتر در نظر می‌گیریم
+  const adjustedX =
+    x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 10 : x;
+  const adjustedY =
+    y + menuHeight > window.innerHeight
+      ? window.innerHeight - menuHeight - 10
+      : y;
 
   const handleCopy = () => {
     if (message.text) {
@@ -77,7 +84,33 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
         >
           <span>پاسخ</span>
-          <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+          <svg
+            className="w-4 h-4 opacity-70"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+            ></path>
+          </svg>
+        </button>
+      )}
+
+      {/* دکمه بازارسال */}
+      {onForward && (
+        <button
+          onClick={() => {
+            onForward(message);
+            onClose();
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+        >
+          <span>بازارسال</span>
+          <Forward className="w-4 h-4 text-sky-500 opacity-80" />
         </button>
       )}
 
@@ -88,7 +121,19 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
         >
           <span>{copied ? "کپی شد" : "کپی متن"}</span>
-          <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+          <svg
+            className="w-4 h-4 opacity-70"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+            ></path>
+          </svg>
         </button>
       )}
 
@@ -102,11 +147,25 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
         >
           <span>ویرایش</span>
-          <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+          <svg
+            className="w-4 h-4 opacity-70"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+            ></path>
+          </svg>
         </button>
       )}
 
-      {onDelete && <div className="my-1 border-t border-gray-100 dark:border-gray-700" />}
+      {onDelete && (
+        <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+      )}
 
       {/* دکمه حذف */}
       {onDelete && (
@@ -118,7 +177,19 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 dark:hover:bg-red-900/30 dark:text-red-400 transition"
         >
           <span>حذف پیام</span>
-          <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          <svg
+            className="w-4 h-4 opacity-70"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            ></path>
+          </svg>
         </button>
       )}
     </div>

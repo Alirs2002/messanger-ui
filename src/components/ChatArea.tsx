@@ -14,6 +14,7 @@ import { useChatStore } from "../store/useChatStore";
 import MessageBubble from "./MessageBubble";
 import { MessageContextMenu } from "./MessageContextMenu";
 import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
+import { ForwardModal } from "./ForwardModal"; // اضافه شدن ایمپورت مودال بازارسال
 import type { MessageItem } from "../types/chat";
 
 export const ChatArea: React.FC = () => {
@@ -32,6 +33,9 @@ export const ChatArea: React.FC = () => {
   const [editingMessage, setEditingMessage] = useState<MessageItem | null>(
     null,
   );
+  const [forwardingMessage, setForwardingMessage] =
+    useState<MessageItem | null>(null); // استیت فوروارد
+
   const [isMuted, setIsMuted] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
 
@@ -122,6 +126,12 @@ export const ChatArea: React.FC = () => {
     if (activeConversationId) {
       deleteMessage(activeConversationId, message.id);
     }
+    closeContextMenu();
+  };
+
+  // هندلر جدید برای بازارسال
+  const handleForwardMessage = (message: MessageItem) => {
+    setForwardingMessage(message);
     closeContextMenu();
   };
 
@@ -225,7 +235,6 @@ export const ChatArea: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Header Menu */}
         <ChatHeaderMenu
           chatType={currentChatType}
           isMuted={isMuted}
@@ -245,7 +254,12 @@ export const ChatArea: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {currentMessages.map((msg) => (
           <div key={msg.id} onContextMenu={(e) => handleContextMenu(e, msg)}>
-            <MessageBubble message={msg} onReplyClick={handleScrollToMessage} />
+            <MessageBubble
+              message={msg}
+              onReplyClick={handleScrollToMessage}
+              isChannel={currentChatType === "channel"}
+              onForwardClick={handleForwardMessage}
+            />
           </div>
         ))}
         <div ref={messagesEndRef} />
@@ -266,7 +280,6 @@ export const ChatArea: React.FC = () => {
             </div>
           </div>
           <button
-            type="button"
             onClick={handleCancelAction}
             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500"
           >
@@ -292,7 +305,6 @@ export const ChatArea: React.FC = () => {
             </div>
           </div>
           <button
-            type="button"
             onClick={handleCancelAction}
             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500"
           >
@@ -373,8 +385,21 @@ export const ChatArea: React.FC = () => {
           onReply={() => handleReplyMessage(contextMenu.message)}
           onEdit={() => handleEditMessage(contextMenu.message)}
           onDelete={() => handleDeleteMessage(contextMenu.message)}
+          onForward={() => handleForwardMessage(contextMenu.message)}
         />
       )}
+
+      {/* مودال بازارسال (فوروارد) */}
+      <ForwardModal
+        isOpen={!!forwardingMessage}
+        message={forwardingMessage}
+        currentChatTitle={activeConversation?.title}
+        onClose={() => setForwardingMessage(null)}
+        onForwardSuccess={(targetTitle) => {
+          // در صورت تمایل می‌توانید یک Toast (مثل react-hot-toast) اینجا فراخوانی کنید
+          // toast.success(`پیام به ${targetTitle} ارسال شد`);
+        }}
+      />
     </div>
   );
 };

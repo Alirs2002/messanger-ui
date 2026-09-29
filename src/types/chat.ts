@@ -15,12 +15,19 @@ export interface MessageItem {
   isOutgoing: boolean;
   status?: "sending" | "sent" | "delivered" | "read";
   replyRefMessageId?: string | number | null;
+  forwardFrom?: ForwardFromInfo;
   replyToMessage?: {
     id: string | number;
     text: string;
     senderName?: string;
     isOutgoing?: boolean;
   } | null;
+}
+export interface ForwardFromInfo {
+  id: string | number;
+  name: string;
+  chatTitle?: string;
+  chatType?: "pv" | "group" | "channel";
 }
 
 export interface ConversationItem {
