@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import type { MessageItem } from "../types/chat"; // اگر مسیر تایپ‌ها متفاوت است اصلاح کنید
+import type { MessageItem } from "../types/chat";
 
 interface MessageContextMenuProps {
   x: number;
   y: number;
   message: MessageItem;
   onClose: () => void;
-  onReply: (message: MessageItem) => void;
+  onReply?: (message: MessageItem) => void;
   onEdit?: (message: MessageItem) => void;
-  onDelete?: (message: MessageItem) => void; // اصلاح شد: ارسال کل آبجکت پیام
+  onDelete?: (message: MessageItem) => void;
 }
 
 export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
@@ -23,7 +23,6 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
-  // بستن منو با کلیک بیرون، اسکرول یا زدن Esc
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -45,7 +44,6 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
     };
   }, [onClose]);
 
-  // جلوگیری از بیرون زدن منو از کادر مانیتور
   const menuWidth = 160;
   const menuHeight = 180;
   const adjustedX = x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 10 : x;
@@ -70,16 +68,18 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
       onClick={(e) => e.stopPropagation()}
     >
       {/* دکمه پاسخ */}
-      <button
-        onClick={() => {
-          onReply(message);
-          onClose();
-        }}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-      >
-        <span>پاسخ</span>
-        <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
-      </button>
+      {onReply && (
+        <button
+          onClick={() => {
+            onReply(message);
+            onClose();
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+        >
+          <span>پاسخ</span>
+          <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+        </button>
+      )}
 
       {/* دکمه کپی */}
       {message.text && (
@@ -92,7 +92,7 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         </button>
       )}
 
-      {/* دکمه ویرایش (فقط پیام‌های ارسالی) */}
+      {/* دکمه ویرایش (فقط پیام‌های ارسالی کاربر) */}
       {message.isOutgoing && onEdit && (
         <button
           onClick={() => {
@@ -106,13 +106,13 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         </button>
       )}
 
-      <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+      {onDelete && <div className="my-1 border-t border-gray-100 dark:border-gray-700" />}
 
       {/* دکمه حذف */}
       {onDelete && (
         <button
           onClick={() => {
-            onDelete(message); // اصلاح شد: کل آبجکت message پاس داده می‌شود
+            onDelete(message);
             onClose();
           }}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 dark:hover:bg-red-900/30 dark:text-red-400 transition"

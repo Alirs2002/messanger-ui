@@ -16,18 +16,20 @@ import {
 import { useChatStore } from "../store/useChatStore";
 
 export const ChatArea: React.FC = () => {
+  // متغیرهای استور (بدون فیلدهای اضافی reply)
   const {
     activeConversationId,
     setActiveConversation,
     conversations,
     messages,
     sendMessage,
-    deleteMessage, // اکشن حذف از استور
-    replyingTo,
-    setReplyingTo,
+    deleteMessage,
   } = useChatStore();
 
+  // استیت‌های محلی برای ورودی و ریپلای
   const [inputText, setInputText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
+
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
     x: number;
@@ -42,30 +44,37 @@ export const ChatArea: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   // استیت‌های مودال حذف
   const [deleteModalMsg, setDeleteModalMsg] = useState<any | null>(null);
   const [deleteForAll, setDeleteForAll] = useState(false);
 
+  // اطلاعات گفتگوی فعال
   const activeChat = conversations.find((c) => c.id === activeConversationId);
-  const isChannel = activeChat?.type === "CHANNEL";
-  const isGroup = activeChat?.type === "GROUP";
+  const isChannel = activeChat?.type?.toUpperCase() === "CHANNEL";
+  const isGroup = activeChat?.type?.toUpperCase() === "GROUP";
+
+  // لایه کنترل دسترسی (Permission Layer)
+  const isAdmin = false;
+
+  const canWriteMessage = !isChannel || isAdmin;
+  const canDeleteMessage = !isChannel || isAdmin;
 
   const currentMessages = activeConversationId
     ? messages[activeConversationId] || []
     : [];
 
-  // اسکرول خودکار به انتهای چت
+  // اسکرول خودکار به آخرین پیام
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentMessages]);
 
-  // فوکوس روی اینپوت هنگام کلیک روی دکمه ریپلای
+  // فوکوس روی اینپوت بعد از کلیک روی ریپلای
   useEffect(() => {
-    if (replyingTo) {
+    if (replyingTo && canWriteMessage) {
       inputRef.current?.focus();
     }
-  }, [replyingTo]);
+  }, [replyingTo, canWriteMessage]);
 
   const handleContextMenu = (e: React.MouseEvent, message: any) => {
     e.preventDefault();
@@ -73,20 +82,16 @@ export const ChatArea: React.FC = () => {
       isOpen: true,
       x: e.clientX,
       y: e.clientY,
-      message: message,
+      message,
     });
   };
 
-  // تابع پرش به پیام ریپلای‌شده و هایلایت موقت
+  // اسکرول به پیام ریپلای‌شده و هایلایت موقت
   const scrollToMessage = (messageId: string | number) => {
     const targetElement = document.getElementById(`message-${messageId}`);
     if (targetElement) {
       targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      targetElement.classList.add(
-        "bg-emerald-100/70",
-        "transition-colors",
-        "duration-500"
-      );
+      targetElement.classList.add("bg-emerald-100/70", "transition-colors", "duration-500");
       setTimeout(() => {
         targetElement.classList.remove("bg-emerald-100/70");
       }, 1200);
@@ -95,22 +100,20 @@ export const ChatArea: React.FC = () => {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !activeConversationId || isChannel) return;
+    if (!inputText.trim() || !activeConversationId || !canWriteMessage) return;
 
     sendMessage(activeConversationId, inputText.trim());
     setInputText("");
+    setReplyingTo(null);
   };
 
-  // تایید و انجام حذف پیام
   const handleDeleteConfirm = () => {
     if (!deleteModalMsg || !activeConversationId) return;
 
-    // ۱. حذف پیام از استور فرانت
     if (typeof deleteMessage === "function") {
       deleteMessage(activeConversationId, deleteModalMsg.id);
     }
 
-    // ۲. بستن مودال
     setDeleteModalMsg(null);
     setDeleteForAll(false);
   };
@@ -130,7 +133,7 @@ export const ChatArea: React.FC = () => {
 
   return (
     <main className="flex-1 flex flex-col h-screen bg-[#f0f2f5] relative select-none">
-      {/* ۱. هدر چت */}
+      {/* هدر */}
       <header className="h-16 px-4 bg-white border-b border-slate-200 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">
           <button
@@ -138,7 +141,7 @@ export const ChatArea: React.FC = () => {
               setActiveConversation(null);
               setReplyingTo(null);
             }}
-            className="md:hidden p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"
+            className="md:hidden p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition"
           >
             <ArrowRight className="w-5 h-5" />
           </button>
@@ -149,7 +152,7 @@ export const ChatArea: React.FC = () => {
 
           <div>
             <h2 className="text-sm font-bold text-slate-800">
-              {activeChat?.title || `گفتگوی فعال (${activeConversationId})`}
+              {activeChat?.title || `گفتگو (${activeConversationId})`}
             </h2>
           </div>
         </div>
@@ -166,10 +169,10 @@ export const ChatArea: React.FC = () => {
         </div>
       </header>
 
-      {/* ۲. بدنه پیام‌ها */}
+      {/* لیست پیام‌ها */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {Array.isArray(currentMessages) &&
-          currentMessages.map((msg) => (
+          currentMessages.map((msg: any) => (
             <div
               key={msg.id}
               id={`message-${msg.id}`}
@@ -178,8 +181,8 @@ export const ChatArea: React.FC = () => {
                 msg.isOutgoing ? "justify-end" : "justify-start"
               }`}
             >
-              {/* دکمه ریپلای برای پیام‌های خودمان */}
-              {msg.isOutgoing && !isChannel && (
+              {/* دکمه ریپلای پیام‌های خودمان */}
+              {msg.isOutgoing && canWriteMessage && (
                 <button
                   type="button"
                   onClick={() => setReplyingTo(msg)}
@@ -203,23 +206,18 @@ export const ChatArea: React.FC = () => {
                   </span>
                 )}
 
+                {/* نمایش باکس نقل‌قول در صورت ریپلای بودن */}
                 {msg.replyToMessage && (
                   <div
-                    onClick={() =>
-                      msg.replyRefMessageId &&
-                      scrollToMessage(msg.replyRefMessageId)
-                    }
-                    className={`mb-2 p-2 rounded-lg border-r-4 text-xs cursor-pointer select-none transition hover:opacity-90 ${
+                    onClick={() => scrollToMessage(msg.replyToMessage.id)}
+                    className={`mb-2 p-1.5 px-2.5 rounded-lg border-r-3 text-xs cursor-pointer transition ${
                       msg.isOutgoing
-                        ? "bg-emerald-700/60 border-emerald-300 text-emerald-50"
-                        : "bg-slate-100 border-emerald-500 text-slate-600"
+                        ? "bg-emerald-700/50 border-emerald-300 text-emerald-50 hover:bg-emerald-700/70"
+                        : "bg-slate-100 border-emerald-500 text-slate-600 hover:bg-slate-200"
                     }`}
-                    title="مشاهده پیام اصلی"
                   >
-                    <span className="block font-bold mb-0.5 text-[11px] opacity-90">
-                      {msg.replyToMessage.isOutgoing
-                        ? "شما"
-                        : msg.replyToMessage.senderName || "کاربر"}
+                    <span className="font-semibold block text-[11px] mb-0.5">
+                      {msg.replyToMessage.senderName || "پیام"}
                     </span>
                     <p className="line-clamp-1 italic text-[11px] opacity-80">
                       {msg.replyToMessage.text}
@@ -249,8 +247,8 @@ export const ChatArea: React.FC = () => {
                 </div>
               </div>
 
-              {/* دکمه ریپلای برای پیام‌های دیگران */}
-              {!msg.isOutgoing && !isChannel && (
+              {/* دکمه ریپلای پیام‌های مخاطب */}
+              {!msg.isOutgoing && canWriteMessage && (
                 <button
                   type="button"
                   onClick={() => setReplyingTo(msg)}
@@ -265,17 +263,18 @@ export const ChatArea: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ۳. فوتر و اینپوت پیام */}
-      {isChannel ? (
-        <footer className="p-3 bg-white border-t border-slate-200 flex justify-center items-center shrink-0">
-          <p className="text-sm text-slate-500 font-medium py-2">
-            شما امکان ارسال پیام در این کانال را ندارید
+      {/* بخش پایین صفحه (فوتر) */}
+      {!canWriteMessage ? (
+        <footer className="p-3.5 bg-white border-t border-slate-200 flex justify-center items-center shrink-0">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium py-1">
+            فقط مدیران امکان ارسال پیام در این کانال را دارند.
           </p>
         </footer>
       ) : (
         <footer className="bg-white border-t border-slate-200 shrink-0">
+          {/* نوار ریپلای بالای اینپوت */}
           {replyingTo && (
-            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200/80 transition-all animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200/80 transition-all">
               <div className="flex items-center gap-2 overflow-hidden border-r-2 border-emerald-500 pr-2">
                 <Reply className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div className="flex flex-col text-xs overflow-hidden">
@@ -340,24 +339,28 @@ export const ChatArea: React.FC = () => {
         </footer>
       )}
 
-      {/* منوی راست کلیک */}
+      {/* منوی کلیک راست */}
       {contextMenu.isOpen && contextMenu.message && (
         <MessageContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
           message={contextMenu.message}
           onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false }))}
-          onReply={(msg) => setReplyingTo(msg)}
-          onDelete={(msg) => {
-            setDeleteModalMsg(msg);
-            setDeleteForAll(false);
-          }}
+          onReply={canWriteMessage ? (msg) => setReplyingTo(msg) : undefined}
+          onDelete={
+            canDeleteMessage
+              ? (msg) => {
+                  setDeleteModalMsg(msg);
+                  setDeleteForAll(false);
+                }
+              : undefined
+          }
         />
       )}
 
-      {/* مودال تایید حذف پیام */}
+      {/* مودال حذف */}
       {deleteModalMsg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
             <div className="flex items-center gap-3 text-red-600">
               <div className="p-2 bg-red-50 rounded-xl">
@@ -370,8 +373,11 @@ export const ChatArea: React.FC = () => {
               آیا از حذف این پیام اطمینان دارید؟
             </p>
 
-            {/* گزینه‌های شرطی حذف بر اساس گروه یا PV */}
-            {isGroup ? (
+            {isChannel ? (
+              <p className="text-xs text-amber-600 bg-amber-50 p-2.5 rounded-lg border border-amber-200/60">
+                توجه: این پیام از کانال برای تمام دنبال‌کنندگان حذف خواهد شد.
+              </p>
+            ) : isGroup ? (
               <p className="text-xs text-amber-600 bg-amber-50 p-2.5 rounded-lg border border-amber-200/60">
                 توجه: این پیام برای تمام اعضای گروه حذف خواهد شد.
               </p>
