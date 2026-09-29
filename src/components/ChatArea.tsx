@@ -1,9 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Phone,
-  Video,
-  Search,
-  MoreVertical,
   Paperclip,
   Smile,
   Mic,
@@ -17,6 +13,7 @@ import {
 import { useChatStore } from "../store/useChatStore";
 import MessageBubble from "./MessageBubble";
 import { MessageContextMenu } from "./MessageContextMenu";
+import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
 import type { MessageItem } from "../types/chat";
 
 export const ChatArea: React.FC = () => {
@@ -32,7 +29,11 @@ export const ChatArea: React.FC = () => {
   } = useChatStore();
 
   const [messageText, setMessageText] = useState("");
-  const [editingMessage, setEditingMessage] = useState<MessageItem | null>(null);
+  const [editingMessage, setEditingMessage] = useState<MessageItem | null>(
+    null,
+  );
+  const [isMuted, setIsMuted] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,51 +45,51 @@ export const ChatArea: React.FC = () => {
   } | null>(null);
 
   const activeConversation = conversations.find(
-    (c) => String(c.id) === String(activeConversationId)
+    (c) => String(c.id) === String(activeConversationId),
   );
 
   const currentMessages = activeConversationId
     ? messages[activeConversationId] || []
     : [];
 
-  // اسکرول خودکار به آخرین پیام در صورت نبودن در حالت ویرایش
+  const currentChatType: ChatType =
+    (activeConversation as any)?.chatType ||
+    (activeConversation as any)?.type?.toLowerCase?.() ||
+    "pv";
+
   useEffect(() => {
     if (!editingMessage) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [currentMessages, editingMessage]);
 
-  // فوکوس روی اینپوت هنگام فعال شدن حالت ویرایش
   useEffect(() => {
     if (editingMessage) {
       inputRef.current?.focus();
     }
   }, [editingMessage]);
 
-  // اسکرول نرم به پیام مرجع ریپلای و های‌لایت کردن آن
   const handleScrollToMessage = (messageId: string | number) => {
     const targetElement = document.getElementById(`message-${messageId}`);
     if (targetElement) {
       targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-
       targetElement.classList.add(
         "bg-amber-100/60",
         "dark:bg-amber-900/30",
         "p-1",
-        "rounded-2xl"
+        "rounded-2xl",
       );
       setTimeout(() => {
         targetElement.classList.remove(
           "bg-amber-100/60",
           "dark:bg-amber-900/30",
           "p-1",
-          "rounded-2xl"
+          "rounded-2xl",
         );
       }, 1200);
     }
   };
 
-  // مدیریت منوی راست‌کلیک
   const handleContextMenu = (e: React.MouseEvent, message: MessageItem) => {
     e.preventDefault();
     setContextMenu({
@@ -124,14 +125,12 @@ export const ChatArea: React.FC = () => {
     closeContextMenu();
   };
 
-  // لغو حالت ویرایش یا ریپلای
   const handleCancelAction = () => {
     setEditingMessage(null);
     setReplyingTo(null);
     setMessageText("");
   };
 
-  // ارسال پیام یا ذخیره ویرایش
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !activeConversation) return;
@@ -144,6 +143,44 @@ export const ChatArea: React.FC = () => {
       sendMessage(activeConversation.id, messageText.trim());
       setMessageText("");
     }
+  };
+
+  const handleClearChat = () => {
+    if (
+      window.confirm("آیا از پاکسازی تمام پیام‌های این گفتگو اطمینان دارید؟")
+    ) {
+      currentMessages.forEach((msg) => {
+        if (activeConversationId) {
+          deleteMessage(activeConversationId, msg.id);
+        }
+      });
+    }
+  };
+
+  const handleLeaveGroup = () => {
+    if (window.confirm("آیا مایل به ترک این گفتگو هستید؟")) {
+      alert("شما از گفتگو خارج شدید.");
+    }
+  };
+
+  const handleBlockToggle = () => {
+    if (isBlocked) {
+      setIsBlocked(false);
+      alert("کاربر از حالت مسدود خارج شد.");
+    } else {
+      if (window.confirm("آیا از مسدود کردن این کاربر اطمینان دارید؟")) {
+        setIsBlocked(true);
+        alert("کاربر مسدود شد.");
+      }
+    }
+  };
+
+  const handleReport = () => {
+    alert("گزارش تخلف برای این گفتگو ثبت گردید.");
+  };
+
+  const handleSearch = () => {
+    inputRef.current?.focus();
   };
 
   if (!activeConversation) {
@@ -159,7 +196,7 @@ export const ChatArea: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-gray-50 dark:bg-gray-900 relative">
-      {/* هدر چت */}
+      {/* Header */}
       <div className="h-16 border-b border-gray-200 dark:border-gray-800 px-6 flex items-center justify-between bg-white dark:bg-gray-800 shadow-sm z-10">
         <div className="flex items-center space-x-3 space-x-reverse">
           <div className="relative">
@@ -175,46 +212,48 @@ export const ChatArea: React.FC = () => {
               {activeConversation.title}
             </h2>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {activeConversation.isOnline ? "آنلاین" : "آخرین بازدید اخیراً"}
+              {currentChatType === "pv"
+                ? isBlocked
+                  ? "مسدود شده"
+                  : activeConversation.isOnline
+                    ? "آنلاین"
+                    : "آخرین بازدید اخیراً"
+                : currentChatType === "group"
+                  ? "گروه"
+                  : "کانال"}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center space-x-1 space-x-reverse text-gray-500 dark:text-gray-400">
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-            <Search className="w-5 h-5" />
-          </button>
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-            <Phone className="w-5 h-5" />
-          </button>
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-            <Video className="w-5 h-5" />
-          </button>
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-            <MoreVertical className="w-5 h-5" />
-          </button>
-        </div>
+        {/* Action Header Menu */}
+        <ChatHeaderMenu
+          chatType={currentChatType}
+          isMuted={isMuted}
+          isBlocked={isBlocked}
+          onMuteToggle={() => setIsMuted((prev) => !prev)}
+          onBlockToggle={handleBlockToggle}
+          onSearch={handleSearch}
+          onReport={handleReport}
+          onInfo={() => alert(`اطلاعات: ${activeConversation.title}`)}
+          onClearChat={handleClearChat}
+          onLeave={handleLeaveGroup}
+          onSelectMessages={() => alert("حالت انتخاب پیام‌ها فعال شد")}
+        />
       </div>
 
-      {/* لیست پیام‌ها */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {currentMessages.map((msg) => (
-          <div
-            key={msg.id}
-            onContextMenu={(e) => handleContextMenu(e, msg)}
-          >
-            <MessageBubble
-              message={msg}
-              onReplyClick={handleScrollToMessage}
-            />
+          <div key={msg.id} onContextMenu={(e) => handleContextMenu(e, msg)}>
+            <MessageBubble message={msg} onReplyClick={handleScrollToMessage} />
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* نوار وضعیت ویرایش پیام */}
+      {/* Edit bar */}
       {editingMessage && (
-        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between transition-all">
+        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center space-x-3 space-x-reverse overflow-hidden">
             <Edit2 className="w-5 h-5 text-emerald-500 shrink-0" />
             <div className="border-r-2 border-emerald-500 pr-2 truncate">
@@ -229,21 +268,23 @@ export const ChatArea: React.FC = () => {
           <button
             type="button"
             onClick={handleCancelAction}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors"
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* نوار پیش‌نمایش ریپلای (در صورتی که در حالت ویرایش نباشیم) */}
+      {/* Reply bar */}
       {replyingTo && !editingMessage && (
-        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between transition-all">
+        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center space-x-3 space-x-reverse overflow-hidden">
             <Reply className="w-5 h-5 text-emerald-500 shrink-0" />
             <div className="border-r-2 border-emerald-500 pr-2 truncate">
               <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block">
-                پاسخ به {replyingTo.senderName || (replyingTo.isOutgoing ? "شما" : "کاربر")}
+                پاسخ به{" "}
+                {replyingTo.senderName ||
+                  (replyingTo.isOutgoing ? "شما" : "کاربر")}
               </span>
               <p className="text-xs text-gray-600 dark:text-gray-300 truncate max-w-md">
                 {replyingTo.text}
@@ -253,68 +294,76 @@ export const ChatArea: React.FC = () => {
           <button
             type="button"
             onClick={handleCancelAction}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors"
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* فرم ارسال یا ویرایش پیام */}
-      <form
-        onSubmit={handleSendMessage}
-        className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800 flex items-center space-x-2 space-x-reverse"
-      >
-        <button
-          type="button"
-          className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      {/* Input */}
+      {isBlocked ? (
+        <div className="p-4 bg-gray-100 dark:bg-gray-800 text-center text-rose-500 dark:text-rose-400 text-sm font-medium border-t border-gray-200 dark:border-gray-700">
+          این کاربر مسدود شده است. امکان ارسال پیام وجود ندارد.
+        </div>
+      ) : (
+        <form
+          onSubmit={handleSendMessage}
+          className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800 flex items-center space-x-2 space-x-reverse"
         >
-          <Smile className="w-5 h-5" />
-        </button>
-        <button
-          type="button"
-          className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          <Paperclip className="w-5 h-5" />
-        </button>
-
-        <input
-          ref={inputRef}
-          type="text"
-          value={messageText}
-          onChange={(e) => setMessageText(e.target.value)}
-          placeholder={editingMessage ? "ویرایش پیام..." : "پیام خود را بنویسید..."}
-          className="flex-1 bg-gray-100 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 px-4 py-2.5 rounded-full text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-400"
-        />
-
-        {editingMessage ? (
-          <button
-            type="submit"
-            disabled={!messageText.trim()}
-            className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors shadow-sm disabled:opacity-50"
-            title="ذخیره ویرایش"
-          >
-            <Check className="w-5 h-5" />
-          </button>
-        ) : messageText.trim() ? (
-          <button
-            type="submit"
-            className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors shadow-sm"
-            title="ارسال"
-          >
-            <Send className="w-5 h-5 transform -rotate-90" />
-          </button>
-        ) : (
           <button
             type="button"
-            className="p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
-            <Mic className="w-5 h-5" />
+            <Smile className="w-5 h-5" />
           </button>
-        )}
-      </form>
+          <button
+            type="button"
+            className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
 
-      {/* منوی کلیک راست */}
+          <input
+            ref={inputRef}
+            type="text"
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder={
+              editingMessage ? "ویرایش پیام..." : "پیام خود را بنویسید..."
+            }
+            className="flex-1 bg-gray-100 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 px-4 py-2.5 rounded-full text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-400"
+          />
+
+          {editingMessage ? (
+            <button
+              type="submit"
+              disabled={!messageText.trim()}
+              className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors shadow-sm disabled:opacity-50"
+              title="ذخیره ویرایش"
+            >
+              <Check className="w-5 h-5" />
+            </button>
+          ) : messageText.trim() ? (
+            <button
+              type="submit"
+              className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors shadow-sm"
+              title="ارسال"
+            >
+              <Send className="w-5 h-5 transform -rotate-90" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              <Mic className="w-5 h-5" />
+            </button>
+          )}
+        </form>
+      )}
+
+      {/* Context menu */}
       {contextMenu && (
         <MessageContextMenu
           x={contextMenu.x}
