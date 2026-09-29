@@ -11,9 +11,11 @@ import {
   X,
   Reply,
   MessageSquare,
+  Check,
+  Edit2,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
-import  MessageBubble  from "./MessageBubble";
+import MessageBubble from "./MessageBubble";
 import { MessageContextMenu } from "./MessageContextMenu";
 import type { MessageItem } from "../types/chat";
 
@@ -25,11 +27,16 @@ export const ChatArea: React.FC = () => {
     replyingTo,
     setReplyingTo,
     sendMessage,
+    editMessage,
     deleteMessage,
   } = useChatStore();
 
   const [messageText, setMessageText] = useState("");
+  const [editingMessage, setEditingMessage] = useState<MessageItem | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -37,16 +44,26 @@ export const ChatArea: React.FC = () => {
   } | null>(null);
 
   const activeConversation = conversations.find(
-    (c) => c.id === activeConversationId
+    (c) => String(c.id) === String(activeConversationId)
   );
+
   const currentMessages = activeConversationId
     ? messages[activeConversationId] || []
     : [];
 
-  // اسکرول خودکار به آخرین پیام
+  // اسکرول خودکار به آخرین پیام در صورت نبودن در حالت ویرایش
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentMessages]);
+    if (!editingMessage) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [currentMessages, editingMessage]);
+
+  // فوکوس روی اینپوت هنگام فعال شدن حالت ویرایش
+  useEffect(() => {
+    if (editingMessage) {
+      inputRef.current?.focus();
+    }
+  }, [editingMessage]);
 
   // مدیریت منوی راست‌کلیک
   const handleContextMenu = (e: React.MouseEvent, message: MessageItem) => {
@@ -63,7 +80,17 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleReplyMessage = (message: MessageItem) => {
+    setEditingMessage(null);
     setReplyingTo(message);
+    inputRef.current?.focus();
+    closeContextMenu();
+  };
+
+  const handleEditMessage = (message: MessageItem) => {
+    setReplyingTo(null);
+    setEditingMessage(message);
+    setMessageText(message.text);
+    inputRef.current?.focus();
     closeContextMenu();
   };
 
@@ -74,13 +101,26 @@ export const ChatArea: React.FC = () => {
     closeContextMenu();
   };
 
-  // ارسال پیام (فقط با ۲ آرگومان زیرا استور خودش replyingTo را دارد)
+  // لغو حالت ویرایش یا ریپلای
+  const handleCancelAction = () => {
+    setEditingMessage(null);
+    setReplyingTo(null);
+    setMessageText("");
+  };
+
+  // ارسال پیام یا ذخیره ویرایش
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !activeConversation) return;
 
-    sendMessage(activeConversation.id, messageText.trim());
-    setMessageText("");
+    if (editingMessage) {
+      editMessage(activeConversation.id, editingMessage.id, messageText.trim());
+      setEditingMessage(null);
+      setMessageText("");
+    } else {
+      sendMessage(activeConversation.id, messageText.trim());
+      setMessageText("");
+    }
   };
 
   if (!activeConversation) {
@@ -146,8 +186,32 @@ export const ChatArea: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* پیش‌نمایش ریپلای (Reply Preview Bar) */}
-      {replyingTo && (
+      {/* نوار وضعیت ویرایش پیام */}
+      {editingMessage && (
+        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between transition-all">
+          <div className="flex items-center space-x-3 space-x-reverse overflow-hidden">
+            <Edit2 className="w-5 h-5 text-emerald-500 shrink-0" />
+            <div className="border-r-2 border-emerald-500 pr-2 truncate">
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block">
+                ویرایش پیام
+              </span>
+              <p className="text-xs text-gray-600 dark:text-gray-300 truncate max-w-md">
+                {editingMessage.text}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCancelAction}
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* نوار پیش‌نمایش ریپلای (در صورتی که در حالت ویرایش نباشیم) */}
+      {replyingTo && !editingMessage && (
         <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between transition-all">
           <div className="flex items-center space-x-3 space-x-reverse overflow-hidden">
             <Reply className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -162,7 +226,7 @@ export const ChatArea: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={() => setReplyingTo(null)}
+            onClick={handleCancelAction}
             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -170,7 +234,7 @@ export const ChatArea: React.FC = () => {
         </div>
       )}
 
-      {/* فرم ارسال پیام */}
+      {/* فرم ارسال یا ویرایش پیام */}
       <form
         onSubmit={handleSendMessage}
         className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800 flex items-center space-x-2 space-x-reverse"
@@ -189,17 +253,28 @@ export const ChatArea: React.FC = () => {
         </button>
 
         <input
+          ref={inputRef}
           type="text"
           value={messageText}
           onChange={(e) => setMessageText(e.target.value)}
-          placeholder="پیام خود را بنویسید..."
+          placeholder={editingMessage ? "ویرایش پیام..." : "پیام خود را بنویسید..."}
           className="flex-1 bg-gray-100 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 px-4 py-2.5 rounded-full text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-gray-400"
         />
 
-        {messageText.trim() ? (
+        {editingMessage ? (
+          <button
+            type="submit"
+            disabled={!messageText.trim()}
+            className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors shadow-sm disabled:opacity-50"
+            title="ذخیره ویرایش"
+          >
+            <Check className="w-5 h-5" />
+          </button>
+        ) : messageText.trim() ? (
           <button
             type="submit"
             className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors shadow-sm"
+            title="ارسال"
           >
             <Send className="w-5 h-5 transform -rotate-90" />
           </button>
@@ -221,6 +296,7 @@ export const ChatArea: React.FC = () => {
           message={contextMenu.message}
           onClose={closeContextMenu}
           onReply={() => handleReplyMessage(contextMenu.message)}
+          onEdit={() => handleEditMessage(contextMenu.message)}
           onDelete={() => handleDeleteMessage(contextMenu.message)}
         />
       )}

@@ -19,9 +19,17 @@ interface ChatStore {
   replyingTo: MessageItem | null;
   setReplyingTo: (message: MessageItem | null) => void;
 
+  // اکشن‌های ارسال، ویرایش و حذف پیام
   sendMessage: (conversationId: string | number, text: string) => void;
-  // اکشن حذف پیام
-  deleteMessage: (conversationId: string | number, messageId: string | number) => void;
+  editMessage: (
+    conversationId: string | number,
+    messageId: string | number,
+    newText: string
+  ) => void;
+  deleteMessage: (
+    conversationId: string | number,
+    messageId: string | number
+  ) => void;
 }
 
 const INITIAL_CONVERSATIONS: ConversationItem[] = [
@@ -117,11 +125,11 @@ export const useChatStore = create<ChatStore>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   activeConversationId: null,
 
-  // هنگام تغییر چت، استیت ریپلای هم ریست می‌شود
+  // هنگام تغییر چت، استیت ریپلای ریست می‌شود
   setActiveConversation: (id) =>
     set((state) => {
       const updatedConversations = state.conversations.map((c) =>
-        c.id === id ? { ...c, unreadCount: 0 } : c,
+        c.id === id ? { ...c, unreadCount: 0 } : c
       );
       return {
         activeConversationId: id,
@@ -137,6 +145,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   replyingTo: null,
   setReplyingTo: (message) => set({ replyingTo: message }),
 
+  // ارسال پیام جدید
   sendMessage: (conversationId, text) =>
     set((state) => {
       const timeNow = new Date().toLocaleTimeString("fa-IR", {
@@ -168,7 +177,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       const updatedConversations = state.conversations.map((c) =>
         c.id === conversationId
           ? { ...c, lastMessage: text, lastMessageTime: timeNow }
-          : c,
+          : c
       );
 
       return {
@@ -181,40 +190,70 @@ export const useChatStore = create<ChatStore>((set) => ({
       };
     }),
 
-  // پیاده‌سازی متد حذف پیام
- deleteMessage: (conversationId, messageId) =>
-  set((state) => {
-    // تبدیل کلید گفتگو به صورت یکنواخت
-    const currentMsgs = state.messages[conversationId] || [];
-    
-    // مقایسه با تبدیل هر دو به String برای جلوگیری از عدم تطابق تایپ
-    const updatedMsgs = currentMsgs.filter(
-      (msg) => String(msg.id) !== String(messageId)
-    );
+  // ویرایش متن پیام
+  editMessage: (conversationId, messageId, newText) =>
+    set((state) => {
+      const currentMsgs = state.messages[conversationId] || [];
+      const updatedMsgs = currentMsgs.map((msg) =>
+        String(msg.id) === String(messageId)
+          ? { ...msg, text: newText, isEdited: true }
+          : msg
+      );
 
-    const lastMsg = updatedMsgs[updatedMsgs.length - 1];
-    const updatedConversations = state.conversations.map((c) => {
-      if (String(c.id) === String(conversationId)) {
-        return {
-          ...c,
-          lastMessage: lastMsg ? lastMsg.text : "",
-          lastMessageTime: lastMsg ? lastMsg.createdAt : "",
-        };
-      }
-      return c;
-    });
+      // اگر پیامی که ویرایش شد آخرین پیام مکالمه بود، متن پیش‌نمایش در سایدبار هم آپدیت شود
+      const lastMsg = updatedMsgs[updatedMsgs.length - 1];
+      const updatedConversations = state.conversations.map((c) => {
+        if (
+          String(c.id) === String(conversationId) &&
+          String(lastMsg?.id) === String(messageId)
+        ) {
+          return {
+            ...c,
+            lastMessage: newText,
+          };
+        }
+        return c;
+      });
 
-    return {
-      messages: {
-        ...state.messages,
-        [conversationId]: updatedMsgs,
-      },
-      conversations: updatedConversations,
-      replyingTo:
-        state.replyingTo && String(state.replyingTo.id) === String(messageId)
-          ? null
-          : state.replyingTo,
-    };
-  }),
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMsgs,
+        },
+        conversations: updatedConversations,
+      };
+    }),
 
+  // حذف پیام
+  deleteMessage: (conversationId, messageId) =>
+    set((state) => {
+      const currentMsgs = state.messages[conversationId] || [];
+      const updatedMsgs = currentMsgs.filter(
+        (msg) => String(msg.id) !== String(messageId)
+      );
+
+      const lastMsg = updatedMsgs[updatedMsgs.length - 1];
+      const updatedConversations = state.conversations.map((c) => {
+        if (String(c.id) === String(conversationId)) {
+          return {
+            ...c,
+            lastMessage: lastMsg ? lastMsg.text : "",
+            lastMessageTime: lastMsg ? lastMsg.createdAt : "",
+          };
+        }
+        return c;
+      });
+
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMsgs,
+        },
+        conversations: updatedConversations,
+        replyingTo:
+          state.replyingTo && String(state.replyingTo.id) === String(messageId)
+            ? null
+            : state.replyingTo,
+      };
+    }),
 }));
