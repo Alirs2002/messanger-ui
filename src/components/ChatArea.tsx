@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import  {MessageContextMenu}  from "./MessageContextMenu";
-
+import { MessageContextMenu } from "./MessageContextMenu";
 import {
   Send,
   Paperclip,
@@ -12,6 +11,7 @@ import {
   ArrowRight,
   Reply,
   X,
+  Trash2,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 
@@ -22,28 +22,35 @@ export const ChatArea: React.FC = () => {
     conversations,
     messages,
     sendMessage,
+    deleteMessage, // اکشن حذف از استور
     replyingTo,
     setReplyingTo,
   } = useChatStore();
 
   const [inputText, setInputText] = useState("");
   const [contextMenu, setContextMenu] = useState<{
-  isOpen: boolean;
-  x: number;
-  y: number;
-  message: any;
-}>({
-  isOpen: false,
-  x: 0,
-  y: 0,
-  message: null,
-});
+    isOpen: boolean;
+    x: number;
+    y: number;
+    message: any;
+  }>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    message: null,
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // استیت‌های مودال حذف
+  const [deleteModalMsg, setDeleteModalMsg] = useState<any | null>(null);
+  const [deleteForAll, setDeleteForAll] = useState(false);
 
   const activeChat = conversations.find((c) => c.id === activeConversationId);
   const isChannel = activeChat?.type === "CHANNEL";
+  const isGroup = activeChat?.type === "GROUP";
+
   const currentMessages = activeConversationId
     ? messages[activeConversationId] || []
     : [];
@@ -61,14 +68,14 @@ export const ChatArea: React.FC = () => {
   }, [replyingTo]);
 
   const handleContextMenu = (e: React.MouseEvent, message: any) => {
-  e.preventDefault(); // جلوگیری از باز شدن منوی دیفالت مرورگر
-  setContextMenu({
-    isOpen: true,
-    x: e.clientX,
-    y: e.clientY,
-    message: message,
-  });
-};
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY,
+      message: message,
+    });
+  };
 
   // تابع پرش به پیام ریپلای‌شده و هایلایت موقت
   const scrollToMessage = (messageId: string | number) => {
@@ -78,7 +85,7 @@ export const ChatArea: React.FC = () => {
       targetElement.classList.add(
         "bg-emerald-100/70",
         "transition-colors",
-        "duration-500",
+        "duration-500"
       );
       setTimeout(() => {
         targetElement.classList.remove("bg-emerald-100/70");
@@ -92,6 +99,20 @@ export const ChatArea: React.FC = () => {
 
     sendMessage(activeConversationId, inputText.trim());
     setInputText("");
+  };
+
+  // تایید و انجام حذف پیام
+  const handleDeleteConfirm = () => {
+    if (!deleteModalMsg || !activeConversationId) return;
+
+    // ۱. حذف پیام از استور فرانت
+    if (typeof deleteMessage === "function") {
+      deleteMessage(activeConversationId, deleteModalMsg.id);
+    }
+
+    // ۲. بستن مودال
+    setDeleteModalMsg(null);
+    setDeleteForAll(false);
   };
 
   if (!activeConversationId) {
@@ -108,7 +129,7 @@ export const ChatArea: React.FC = () => {
   }
 
   return (
-    <main className="flex-1 flex flex-col h-screen bg-[#f0f2f5] relative">
+    <main className="flex-1 flex flex-col h-screen bg-[#f0f2f5] relative select-none">
       {/* ۱. هدر چت */}
       <header className="h-16 px-4 bg-white border-b border-slate-200 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">
@@ -145,7 +166,7 @@ export const ChatArea: React.FC = () => {
         </div>
       </header>
 
-      {/* ۲. بخش بدنه پیام‌ها */}
+      {/* ۲. بدنه پیام‌ها */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {Array.isArray(currentMessages) &&
           currentMessages.map((msg) => (
@@ -157,7 +178,7 @@ export const ChatArea: React.FC = () => {
                 msg.isOutgoing ? "justify-end" : "justify-start"
               }`}
             >
-              {/* دکمه ریپلای برای پیام‌های ارسالی خودمان */}
+              {/* دکمه ریپلای برای پیام‌های خودمان */}
               {msg.isOutgoing && !isChannel && (
                 <button
                   type="button"
@@ -176,14 +197,12 @@ export const ChatArea: React.FC = () => {
                     : "bg-white text-slate-800 border border-slate-100 rounded-br-xs"
                 }`}
               >
-                {/* نام فرستنده در گروه‌ها */}
                 {!msg.isOutgoing && msg.senderName && !isChannel && (
                   <span className="block text-xs font-bold text-emerald-700 mb-1">
                     {msg.senderName}
                   </span>
                 )}
 
-                {/* پیش‌نمایش پیام نقل‌قول شده در داخل حباب پیام */}
                 {msg.replyToMessage && (
                   <div
                     onClick={() =>
@@ -208,12 +227,10 @@ export const ChatArea: React.FC = () => {
                   </div>
                 )}
 
-                {/* متن اصلی پیام */}
                 <p className="whitespace-pre-wrap select-text break-words">
                   {msg.text}
                 </p>
 
-                {/* زمان و وضعیت ارسال */}
                 <div
                   className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
                     msg.isOutgoing ? "text-emerald-100" : "text-slate-400"
@@ -232,7 +249,7 @@ export const ChatArea: React.FC = () => {
                 </div>
               </div>
 
-              {/* دکمه ریپلای برای پیام‌های دریافتی دیگران */}
+              {/* دکمه ریپلای برای پیام‌های دیگران */}
               {!msg.isOutgoing && !isChannel && (
                 <button
                   type="button"
@@ -248,7 +265,7 @@ export const ChatArea: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ۳. نوار پایین و ورودی پیام */}
+      {/* ۳. فوتر و اینپوت پیام */}
       {isChannel ? (
         <footer className="p-3 bg-white border-t border-slate-200 flex justify-center items-center shrink-0">
           <p className="text-sm text-slate-500 font-medium py-2">
@@ -257,7 +274,6 @@ export const ChatArea: React.FC = () => {
         </footer>
       ) : (
         <footer className="bg-white border-t border-slate-200 shrink-0">
-          {/* نوار نمایش پیام در حال پاسخ (Reply Bar Preview) */}
           {replyingTo && (
             <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200/80 transition-all animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center gap-2 overflow-hidden border-r-2 border-emerald-500 pr-2">
@@ -285,7 +301,6 @@ export const ChatArea: React.FC = () => {
             </div>
           )}
 
-          {/* کادر فرم ارسال متن */}
           <form
             onSubmit={handleSendMessage}
             className="p-3 flex items-center gap-2 max-w-4xl mx-auto"
@@ -324,16 +339,77 @@ export const ChatArea: React.FC = () => {
           </form>
         </footer>
       )}
-            {contextMenu.isOpen && contextMenu.message && (
+
+      {/* منوی راست کلیک */}
+      {contextMenu.isOpen && contextMenu.message && (
         <MessageContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
           message={contextMenu.message}
           onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false }))}
-          onReply={(msg) => {
-            setReplyingTo(msg);
+          onReply={(msg) => setReplyingTo(msg)}
+          onDelete={(msg) => {
+            setDeleteModalMsg(msg);
+            setDeleteForAll(false);
           }}
         />
+      )}
+
+      {/* مودال تایید حذف پیام */}
+      {deleteModalMsg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="p-2 bg-red-50 rounded-xl">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">حذف پیام</h3>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed">
+              آیا از حذف این پیام اطمینان دارید؟
+            </p>
+
+            {/* گزینه‌های شرطی حذف بر اساس گروه یا PV */}
+            {isGroup ? (
+              <p className="text-xs text-amber-600 bg-amber-50 p-2.5 rounded-lg border border-amber-200/60">
+                توجه: این پیام برای تمام اعضای گروه حذف خواهد شد.
+              </p>
+            ) : deleteModalMsg.isOutgoing ? (
+              <label className="flex items-center gap-2 cursor-pointer p-2 bg-slate-50 rounded-lg hover:bg-slate-100 transition">
+                <input
+                  type="checkbox"
+                  checked={deleteForAll}
+                  onChange={(e) => setDeleteForAll(e.target.checked)}
+                  className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                />
+                <span className="text-xs text-slate-700 font-medium">
+                  حذف برای طرف مقابل هم انجام شود
+                </span>
+              </label>
+            ) : null}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalMsg(null);
+                  setDeleteForAll(false);
+                }}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition"
+              >
+                حذف پیام
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

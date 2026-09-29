@@ -20,6 +20,8 @@ interface ChatStore {
   setReplyingTo: (message: MessageItem | null) => void;
 
   sendMessage: (conversationId: string | number, text: string) => void;
+  // اکشن حذف پیام
+  deleteMessage: (conversationId: string | number, messageId: string | number) => void;
 }
 
 const INITIAL_CONVERSATIONS: ConversationItem[] = [
@@ -142,7 +144,6 @@ export const useChatStore = create<ChatStore>((set) => ({
         minute: "2-digit",
       });
 
-      // استخراج دیتای استاندارد ریپلای
       const newMsg: MessageItem = {
         id: Date.now(),
         conversationId,
@@ -176,7 +177,44 @@ export const useChatStore = create<ChatStore>((set) => ({
           [conversationId]: [...currentMsgs, newMsg],
         },
         conversations: updatedConversations,
-        replyingTo: null, // پاکسازی ریپلای بعد از ارسال
+        replyingTo: null,
       };
     }),
+
+  // پیاده‌سازی متد حذف پیام
+ deleteMessage: (conversationId, messageId) =>
+  set((state) => {
+    // تبدیل کلید گفتگو به صورت یکنواخت
+    const currentMsgs = state.messages[conversationId] || [];
+    
+    // مقایسه با تبدیل هر دو به String برای جلوگیری از عدم تطابق تایپ
+    const updatedMsgs = currentMsgs.filter(
+      (msg) => String(msg.id) !== String(messageId)
+    );
+
+    const lastMsg = updatedMsgs[updatedMsgs.length - 1];
+    const updatedConversations = state.conversations.map((c) => {
+      if (String(c.id) === String(conversationId)) {
+        return {
+          ...c,
+          lastMessage: lastMsg ? lastMsg.text : "",
+          lastMessageTime: lastMsg ? lastMsg.createdAt : "",
+        };
+      }
+      return c;
+    });
+
+    return {
+      messages: {
+        ...state.messages,
+        [conversationId]: updatedMsgs,
+      },
+      conversations: updatedConversations,
+      replyingTo:
+        state.replyingTo && String(state.replyingTo.id) === String(messageId)
+          ? null
+          : state.replyingTo,
+    };
+  }),
+
 }));

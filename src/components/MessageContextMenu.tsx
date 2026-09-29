@@ -8,7 +8,7 @@ interface MessageContextMenuProps {
   onClose: () => void;
   onReply: (message: MessageItem) => void;
   onEdit?: (message: MessageItem) => void;
-  onDelete?: (messageId: string | number) => void;
+  onDelete?: (message: MessageItem) => void; // اصلاح شد: ارسال کل آبجکت پیام
 }
 
 export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
@@ -112,7 +112,7 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
       {onDelete && (
         <button
           onClick={() => {
-            onDelete(message.id);
+            onDelete(message); // اصلاح شد: کل آبجکت message پاس داده می‌شود
             onClose();
           }}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 dark:hover:bg-red-900/30 dark:text-red-400 transition"
