@@ -28,6 +28,7 @@ export const ChatArea: React.FC = () => {
     sendMessage,
     editMessage,
     deleteMessage,
+    leaveConversation, // 👈 اضافه شد
     clearChat,
     toggleMuteConversation,
   } = useChatStore();
@@ -129,7 +130,6 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleEditMessage = (message: MessageItem) => {
-    // پیام‌های دریافتی دیگران قابل ویرایش نیستند
     if (!message.isOutgoing) {
       alert("شما فقط می‌توانید پیام‌های ارسالی خود را ویرایش کنید.");
       closeContextMenu();
@@ -143,7 +143,6 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleDeleteMessage = (message: MessageItem) => {
-    // فقط پیام‌های خود کاربر (isOutgoing: true) قابل حذف هستند
     if (!message.isOutgoing) {
       alert("امکان حذف پیام‌های سایر اعضا وجود ندارد.");
       closeContextMenu();
@@ -154,7 +153,6 @@ export const ChatArea: React.FC = () => {
     }
     closeContextMenu();
   };
-
 
   const handleForwardMessage = (message: MessageItem) => {
     setForwardingMessage(message);
@@ -192,9 +190,19 @@ export const ChatArea: React.FC = () => {
     }
   };
 
+  // 👈 رفع باگ خروج از گروه یا کانال
   const handleLeaveGroup = () => {
-    if (window.confirm("آیا مایل به ترک این گفتگو هستید؟")) {
-      alert("شما از گفتگو خارج شدید.");
+    if (!activeConversation) return;
+
+    const chatTypeName =
+      currentChatType === "channel"
+        ? "کانال"
+        : currentChatType === "group"
+        ? "گروه"
+        : "گفتگو";
+
+    if (window.confirm(`آیا از ترک این ${chatTypeName} اطمینان دارید؟`)) {
+      leaveConversation(activeConversation.id);
     }
   };
 

@@ -38,6 +38,7 @@ interface ChatStore {
 
   // اکشن‌های مدیریت گفتگوها و سایدبار
   deleteConversation: (conversationId: string | number) => void;
+  leaveConversation: (conversationId: string | number) => void; // 👈 اضافه شد
   clearChat: (conversationId: string | number) => void;
   togglePinConversation: (conversationId: string | number) => void;
   toggleMuteConversation: (conversationId: string | number) => void;
@@ -352,6 +353,25 @@ export const useChatStore = create<ChatStore>((set) => ({
     }),
 
   deleteConversation: (conversationId) =>
+    set((state) => {
+      const idStr = String(conversationId);
+      const newMessages = { ...state.messages };
+      delete newMessages[idStr];
+      delete newMessages[conversationId];
+
+      return {
+        conversations: state.conversations.filter(
+          (c) => String(c.id) !== idStr,
+        ),
+        messages: newMessages,
+        activeConversationId:
+          String(state.activeConversationId) === idStr
+            ? null
+            : state.activeConversationId,
+      };
+    }),
+
+  leaveConversation: (conversationId) =>
     set((state) => {
       const idStr = String(conversationId);
       const newMessages = { ...state.messages };
