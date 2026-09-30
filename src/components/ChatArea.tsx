@@ -9,16 +9,167 @@ import {
   MessageSquare,
   ChevronDown,
   ArrowRight,
-  Edit2
+  Edit2,
+  Heart,
+  ThumbsUp,
+  Sparkles,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import MessageBubble from "./MessageBubble";
 import { MessageContextMenu } from "./MessageContextMenu";
 import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
 import { ForwardModal } from "./ForwardModal";
-import {UserProfileModal} from "./UserProfileModal";
+import { UserProfileModal } from "./UserProfileModal";
 import type { MessageItem } from "../types/chat";
 
+// ==========================
+// کامپوننت داخلی ایموجی‌پیکر
+// ==========================
+interface EmojiPickerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectEmoji: (emoji: string) => void;
+}
+
+const EMOJI_CATEGORIES = [
+  {
+    id: "smileys",
+    icon: Smile,
+    name: "صورتک‌ها",
+    emojis: [
+      "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "🥲", "🥹",
+      "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗",
+      "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗", "🫢", "🫣", "🤫",
+      "🤔", "🫡", "🤐", "🤨", "😐", "😑", "😶", "🫥", "😏", "😒",
+      "🙄", "😬", "😮‍💨", "🤥", "😌", "😴", "😷", "🤒", "🤕", "🤢",
+      "🤮", "🤧", "🥵", "🥶", "🥴", "😵", "😵‍💫", "🤯", "🤠", "🥳",
+      "🥸", "😎", "🤓", "🧐", "😕", "🫤", "😟", "🙁", "😮", "😯",
+      "😲", "😳", "🥺", "🥹", "😦", "😧", "😨", "😰", "😥", "😢",
+      "😭", "😱", "😖", "😣", "😞", "😓", "😩", "😫", "🥱", "😤",
+      "😡", "😠", "🤬", "😈", "👿", "💀", "☠️", "💩", "🤡", "👻",
+    ],
+  },
+  {
+    id: "gestures",
+    icon: ThumbsUp,
+    name: "دست‌ها و بدن",
+    emojis: [
+      "👋", "🤚", "🖐️", "✋", "🖖", "🫱", "🫲", "🫸", "🫷", "🫳",
+      "🫴", "👌", "🤌", "🤏", "✌️", "🤞", "🫰", "🤟", "🤘", "🤙",
+      "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊",
+      "🤛", "🤜", "👏", "🙌", "🫶", "👐", "🤲", "🤝", "🙏", "✍️",
+      "💪", "🦾", "🦿", "🦵", "🦶", "👂", "🦻", "👃", "🧠", "🫀",
+    ],
+  },
+  {
+    id: "hearts",
+    icon: Heart,
+    name: "قلب‌ها و عواطف",
+    emojis: [
+      "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔",
+      "❤️‍🔥", "❤️‍🩹", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝",
+      "💟", "💌", "💋", "💯", "💢", "💥", "💫", "💦", "💨", "🕳️",
+    ],
+  },
+  {
+    id: "objects",
+    icon: Sparkles,
+    name: "نمادها و علامت‌ها",
+    emojis: [
+      "✨", "⭐", "🌟", "⚡", "🔥", "🎉", "🎊", "🎯", "🏆", "🥇",
+      "🥈", "🥉", "🎁", "🎈", "💡", "🔔", "📢", "💬", "💭", "☕",
+      "🍕", "🍔", "🍟", "🍰", "🚀", "✈️", "🚗", "🛵", "💻", "📱",
+      "✅", "❌", "❓", "❗", "⚠️", "⛔", "🟢", "🔴", "🔵", "🟡",
+    ],
+  },
+];
+
+const EmojiPicker: React.FC<EmojiPickerProps> = ({
+  isOpen,
+  onClose,
+  onSelectEmoji,
+}) => {
+  const [activeCategory, setActiveCategory] = useState("smileys");
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        pickerRef.current &&
+        !pickerRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const currentEmojis =
+    EMOJI_CATEGORIES.find((c) => c.id === activeCategory)?.emojis || [];
+
+  return (
+    <div
+      ref={pickerRef}
+      className="absolute bottom-20 right-6 z-40 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden select-none"
+    >
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80">
+        <div className="flex items-center space-x-1 space-x-reverse">
+          {EMOJI_CATEGORIES.map((cat) => {
+            const Icon = cat.icon;
+            const isActive = activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setActiveCategory(cat.id)}
+                title={cat.name}
+                className={`p-2 rounded-xl transition-all ${
+                  isActive
+                    ? "bg-emerald-500 text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-gray-700/60"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200/50 dark:hover:bg-gray-700/50"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="p-3 max-h-56 overflow-y-auto grid grid-cols-7 sm:grid-cols-8 gap-1.5">
+        {currentEmojis.map((emoji, index) => (
+          <button
+            key={index}
+            type="button"
+            onClick={() => onSelectEmoji(emoji)}
+            className="w-9 h-9 flex items-center justify-center text-xl rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-125 transition-transform duration-100 active:scale-95"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ==========================
+// کامپوننت اصلی ChatArea
+// ==========================
 export const ChatArea: React.FC = () => {
   const store = useChatStore() as any;
   const conversations = store.conversations || [];
@@ -26,14 +177,14 @@ export const ChatArea: React.FC = () => {
   const messages = store.messages || {};
   const replyingTo = store.replyingTo;
   const setReplyingTo = store.setReplyingTo;
-  
+
   const [messageText, setMessageText] = useState("");
   const [editingMessage, setEditingMessage] = useState<MessageItem | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<MessageItem | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  
+
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -57,11 +208,12 @@ export const ChatArea: React.FC = () => {
     ? messages[activeConversationId] || messages[String(activeConversationId)] || []
     : [];
 
-  const displayedMessages = (isSearching && searchQuery.trim())
-    ? currentMessages.filter((msg) =>
-        msg.text?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : currentMessages;
+  const displayedMessages =
+    isSearching && searchQuery.trim()
+      ? currentMessages.filter((msg) =>
+          msg.text?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : currentMessages;
 
   const rawType = String((activeConversation as any)?.type || "").toUpperCase();
   const currentChatType: ChatType =
@@ -215,11 +367,14 @@ export const ChatArea: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-gray-50 dark:bg-gray-900 relative">
-      {/* هدر */}
+      {/* هدر گفتگو */}
       {isSearching ? (
         <div className="h-16 border-b border-gray-200 dark:border-gray-800 px-4 flex items-center gap-3 bg-white dark:bg-gray-800 shadow-sm z-10">
           <button
-            onClick={() => { setIsSearching(false); setSearchQuery(""); }}
+            onClick={() => {
+              setIsSearching(false);
+              setSearchQuery("");
+            }}
             className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
           >
             <ArrowRight className="w-5 h-5" />
@@ -235,7 +390,7 @@ export const ChatArea: React.FC = () => {
         </div>
       ) : (
         <div className="h-16 border-b border-gray-200 dark:border-gray-800 px-6 flex items-center justify-between bg-white dark:bg-gray-800 shadow-sm z-10">
-          <div 
+          <div
             className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1.5 -ml-1.5 rounded-xl transition-colors"
             onClick={() => setShowProfileModal(true)}
           >
@@ -258,7 +413,8 @@ export const ChatArea: React.FC = () => {
             onReport={() => alert("گزارش تخلف ثبت گردید.")}
             onInfo={() => setShowProfileModal(true)}
             onClearChat={() => {
-              if (window.confirm("از پاکسازی پیام‌ها اطمینان دارید؟")) store.clearChat?.(activeConversation.id);
+              if (window.confirm("از پاکسازی پیام‌ها اطمینان دارید؟"))
+                store.clearChat?.(activeConversation.id);
             }}
             onLeave={() => store.leaveConversation?.(activeConversation.id)}
             onSelectMessages={() => {}}
@@ -266,7 +422,7 @@ export const ChatArea: React.FC = () => {
         </div>
       )}
 
-      {/* ناحیه پیام‌ها */}
+      {/* ناحیه نمایش پیام‌ها */}
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -274,15 +430,15 @@ export const ChatArea: React.FC = () => {
       >
         {displayedMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-             <MessageSquare className="w-10 h-10 opacity-30" />
-             <span className="text-sm">
-               {isSearching ? "پیامی یافت نشد." : "پیامی در این گفتگو وجود ندارد."}
-             </span>
+            <MessageSquare className="w-10 h-10 opacity-30" />
+            <span className="text-sm">
+              {isSearching ? "پیامی یافت نشد." : "پیامی در این گفتگو وجود ندارد."}
+            </span>
           </div>
         ) : (
           displayedMessages.map((msg) => (
-            <div 
-              key={msg.id} 
+            <div
+              key={msg.id}
               id={`msg-${msg.id}`}
               onContextMenu={(e) => handleContextMenu(e, msg)}
               className="transition-colors duration-300"
@@ -313,7 +469,17 @@ export const ChatArea: React.FC = () => {
         </button>
       )}
 
-      {/* بنر ریپلای یا ادیت بالای اینپوت */}
+      {/* پاپ‌آپ ایموجی‌پیکر */}
+      <EmojiPicker
+        isOpen={showEmojiPicker}
+        onClose={() => setShowEmojiPicker(false)}
+        onSelectEmoji={(emoji) => {
+          setMessageText((prev) => prev + emoji);
+          inputRef.current?.focus();
+        }}
+      />
+
+      {/* بنر ریپلای یا ویرایش */}
       {(replyingTo || editingMessage) && (
         <div className="px-4 py-2 bg-slate-100 dark:bg-gray-800 border-t border-slate-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs truncate">
@@ -346,7 +512,14 @@ export const ChatArea: React.FC = () => {
       {/* نوار ارسال پیام */}
       <div className="p-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 text-gray-400 hover:text-gray-600 rounded-full transition">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowEmojiPicker((prev) => !prev);
+            }}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-full transition"
+          >
             <Smile className="w-6 h-6" />
           </button>
           <button type="button" className="p-2 text-gray-400 hover:text-gray-600 rounded-full transition">
@@ -362,11 +535,17 @@ export const ChatArea: React.FC = () => {
             className="flex-1 bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-gray-900 dark:text-white disabled:opacity-50"
           />
           {messageText.trim() ? (
-            <button type="submit" className="p-3 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition">
+            <button
+              type="submit"
+              className="p-3 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition"
+            >
               <Send className="w-5 h-5" />
             </button>
           ) : (
-            <button type="button" className="p-3 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full hover:bg-gray-200 transition">
+            <button
+              type="button"
+              className="p-3 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full hover:bg-gray-200 transition"
+            >
               <Mic className="w-5 h-5" />
             </button>
           )}
