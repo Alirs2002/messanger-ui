@@ -193,21 +193,21 @@ export const Sidebar: React.FC = () => {
           y={contextMenu.y}
           conversation={contextMenu.conversation}
           onClose={closeContextMenu}
-          onTogglePin={(c) => togglePinConversation?.(c.id)}
-          onToggleMute={(c) => toggleMuteConversation?.(c.id)}
-          onToggleUnread={(c) => toggleUnreadConversation?.(c.id)}
+          onTogglePin={(c) => togglePinConversation(c.id)}
+          onToggleMute={(c) => toggleMuteConversation(c.id)}
+          onToggleUnread={(c) => toggleUnreadConversation(c.id)}
           onClearHistory={(c) => {
             if (
               window.confirm(
                 "آیا از پاکسازی تمام پیام‌های این گفتگو اطمینان دارید؟",
               )
             ) {
-              clearChat?.(c.id);
+              clearChat(c.id);
             }
           }}
           onDelete={(c) => {
             if (window.confirm("آیا از حذف کامل این گفتگو اطمینان دارید؟")) {
-              deleteConversation?.(c.id);
+              deleteConversation(c.id);
             }
           }}
         />
@@ -215,3 +215,5 @@ export const Sidebar: React.FC = () => {
     </aside>
   );
 };
+
+export default Sidebar;

@@ -28,13 +28,13 @@ export const ChatArea: React.FC = () => {
     sendMessage,
     editMessage,
     deleteMessage,
+    clearChat,
+    toggleMuteConversation,
   } = useChatStore();
 
   const [messageText, setMessageText] = useState("");
   const [editingMessage, setEditingMessage] = useState<MessageItem | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<MessageItem | null>(null);
-
-  const [isMuted, setIsMuted] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -50,30 +50,36 @@ export const ChatArea: React.FC = () => {
     (c) => String(c.id) === String(activeConversationId),
   );
 
-  const currentMessages = activeConversationId
-    ? messages[activeConversationId] || []
+  // دریافت پیام‌های چت فعال
+  const currentMessages: MessageItem[] = activeConversationId
+    ? messages[activeConversationId] ||
+      messages[String(activeConversationId)] ||
+      []
     : [];
 
+  // تشخیص نوع چت
+  const rawType = String(activeConversation?.type || "").toUpperCase();
   const currentChatType: ChatType =
-    (activeConversation as any)?.chatType ||
-    (activeConversation as any)?.type?.toLowerCase?.() ||
-    "pv";
+    rawType === "CHANNEL"
+      ? "channel"
+      : rawType === "GROUP"
+      ? "group"
+      : "pv";
 
-  // بررسی وضعیت کانال و سطح دسترسی کاربر
-  const isChannel =
-    currentChatType === "channel" ||
-    (activeConversation as any)?.type === "CHANNEL";
+  const isChannel = currentChatType === "channel";
 
   const canPostInChannel =
     Boolean((activeConversation as any)?.isAdmin) ||
     (activeConversation as any)?.role === "ADMIN" ||
     (activeConversation as any)?.role === "OWNER";
 
+  const isMuted = Boolean(activeConversation?.isMuted);
+
   useEffect(() => {
     if (!editingMessage) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [currentMessages, editingMessage]);
+  }, [currentMessages, editingMessage, activeConversationId]);
 
   useEffect(() => {
     if (editingMessage) {
@@ -131,8 +137,8 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleDeleteMessage = (message: MessageItem) => {
-    if (activeConversationId) {
-      deleteMessage(activeConversationId, message.id);
+    if (activeConversation) {
+      deleteMessage(activeConversation.id, message.id);
     }
     closeContextMenu();
   };
@@ -166,13 +172,10 @@ export const ChatArea: React.FC = () => {
 
   const handleClearChat = () => {
     if (
+      activeConversation &&
       window.confirm("آیا از پاکسازی تمام پیام‌های این گفتگو اطمینان دارید؟")
     ) {
-      currentMessages.forEach((msg) => {
-        if (activeConversationId) {
-          deleteMessage(activeConversationId, msg.id);
-        }
-      });
+      clearChat(activeConversation.id);
     }
   };
 
@@ -231,15 +234,19 @@ export const ChatArea: React.FC = () => {
               {activeConversation.title}
             </h2>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {currentChatType === "pv"
-                ? isBlocked
-                  ? "مسدود شده"
-                  : activeConversation.isOnline
-                    ? "آنلاین"
-                    : "آخرین بازدید اخیراً"
-                : currentChatType === "group"
-                  ? "گروه"
-                  : "کانال"}
+              {currentChatType === "pv" ? (
+                isBlocked ? (
+                  <span className="text-rose-500">مسدود شده</span>
+                ) : activeConversation.isOnline ? (
+                  <span className="text-emerald-500 font-medium">آنلاین</span>
+                ) : (
+                  "آخرین بازدید اخیراً"
+                )
+              ) : currentChatType === "group" ? (
+                "گروه"
+              ) : (
+                "کانال"
+              )}
             </span>
           </div>
         </div>
@@ -248,7 +255,7 @@ export const ChatArea: React.FC = () => {
           chatType={currentChatType}
           isMuted={isMuted}
           isBlocked={isBlocked}
-          onMuteToggle={() => setIsMuted((prev) => !prev)}
+          onMuteToggle={() => toggleMuteConversation(activeConversation.id)}
           onBlockToggle={handleBlockToggle}
           onSearch={handleSearch}
           onReport={handleReport}
@@ -259,18 +266,24 @@ export const ChatArea: React.FC = () => {
         />
       </div>
 
-      {/* Messages */}
+      {/* Messages List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {currentMessages.map((msg) => (
-          <div key={msg.id} onContextMenu={(e) => handleContextMenu(e, msg)}>
-            <MessageBubble
-              message={msg}
-              onReplyClick={handleScrollToMessage}
-              isChannel={currentChatType === "channel"}
-              onForwardClick={handleForwardMessage}
-            />
+        {currentMessages.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-xs text-gray-400">
+            پیامی در این گفتگو وجود ندارد.
           </div>
-        ))}
+        ) : (
+          currentMessages.map((msg) => (
+            <div key={msg.id} onContextMenu={(e) => handleContextMenu(e, msg)}>
+              <MessageBubble
+                message={msg}
+                onReplyClick={handleScrollToMessage}
+                isChannel={currentChatType === "channel"}
+                onForwardClick={handleForwardMessage}
+              />
+            </div>
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -403,9 +416,9 @@ export const ChatArea: React.FC = () => {
         />
       )}
 
-      {/* مودال بازارسال (فوروارد) */}
+      {/* Forward Modal */}
       <ForwardModal
-        isOpen={!!forwardingMessage}
+        isOpen={Boolean(forwardingMessage)}
         message={forwardingMessage}
         currentChatTitle={activeConversation?.title}
         onClose={() => setForwardingMessage(null)}

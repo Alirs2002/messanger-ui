@@ -5,29 +5,37 @@ export type ConversationType =
   | "CHANNEL"
   | "SUPPORT";
 
-export interface MessageItem {
-  id: string | number;
-  conversationId: string | number;
-  senderId: string | number;
-  senderName?: string;
-  text: string;
-  createdAt: string;
-  isOutgoing: boolean;
-  status?: "sending" | "sent" | "delivered" | "read";
-  replyRefMessageId?: string | number | null;
-  forwardFrom?: ForwardFromInfo;
-  replyToMessage?: {
-    id: string | number;
-    text: string;
-    senderName?: string;
-    isOutgoing?: boolean;
-  } | null;
-}
 export interface ForwardFromInfo {
-  id: string | number;
+  id?: string | number;
   name: string;
   chatTitle?: string;
   chatType?: "pv" | "group" | "channel";
+}
+
+export interface ReplyToMessageInfo {
+  id: string | number;
+  text: string;
+  senderName?: string;
+  isOutgoing?: boolean;
+}
+
+export interface MessageItem {
+  id: string | number;
+  conversationId?: string | number;
+  senderId?: string | number;
+  senderName?: string;
+  text: string;
+  createdAt: string;
+  timestamp?: string;
+  isOutgoing: boolean;
+  isMe?: boolean;
+  isEdited?: boolean;
+  views?: number | string;
+  status?: "sending" | "sent" | "delivered" | "read";
+  replyToId?: string | number | null;
+  replyRefMessageId?: string | number | null;
+  forwardFrom?: ForwardFromInfo | null;
+  replyToMessage?: ReplyToMessageInfo | null;
 }
 
 export interface ConversationItem {
@@ -38,10 +46,14 @@ export interface ConversationItem {
   lastMessage?: string;
   lastMessageTime?: string;
   unreadCount?: number;
+  isUnread?: boolean;
   isPinned?: boolean;
   isOnline?: boolean;
   isVerified?: boolean;
   isMuted?: boolean;
+  isBlocked?: boolean;
+  membersCount?: number;
   role?: "ADMIN" | "OWNER" | "MEMBER";
   isAdmin?: boolean;
+  canPost?: boolean;
 }
