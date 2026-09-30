@@ -10,6 +10,7 @@ import {
   Check,
   Edit2,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import MessageBubble from "./MessageBubble";
@@ -28,16 +29,19 @@ export const ChatArea: React.FC = () => {
     sendMessage,
     editMessage,
     deleteMessage,
-    leaveConversation, // 👈 اضافه شد
+    leaveConversation,
     clearChat,
     toggleMuteConversation,
+    markAsRead,
   } = useChatStore();
 
   const [messageText, setMessageText] = useState("");
   const [editingMessage, setEditingMessage] = useState<MessageItem | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<MessageItem | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,17 +80,82 @@ export const ChatArea: React.FC = () => {
 
   const isMuted = Boolean(activeConversation?.isMuted);
 
+  // تغییر وضعیت اسکرول و خوانده شدن با ورود به گفتگو
   useEffect(() => {
-    if (!editingMessage) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (editingMessage || !activeConversation) return;
+
+    // تایم‌اوت کوتاه برای اطمینان از پایان یافتن رندر پیام‌ها در DOM
+    const timer = setTimeout(() => {
+      const container = messagesContainerRef.current;
+      if (!container) return;
+
+      const unread = activeConversation.unreadCount ?? 0;
+      // آیا صفحه واقعاً اسکرول دارد یا همه پیام‌ها در صفحه جا شده‌اند؟
+      const isScrollable = container.scrollHeight > container.clientHeight + 40;
+
+      if (unread > 0 && isScrollable) {
+        // حالت ۱: چت طولانی دارای پیام نخوانده -> بالا نگه داشتن و نمایش دکمه اسکرول با بج
+        container.scrollTop = 0;
+        setShowScrollBottom(true);
+      } else {
+        // حالت ۲: چت کوتاه (بدون اسکرول) یا چت بدون پیام نخوانده -> رفتن به انتهای صفحه
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        setShowScrollBottom(false);
+
+        // اگر چت کوتاه بود و پیام نخوانده داشت، چون در معرض دید کامل قرار گرفته، بلافاصله خوانده شود
+        if (unread > 0) {
+          markAsRead(activeConversation.id);
+        }
+      }
+    }, 60);
+
+    return () => clearTimeout(timer);
+  }, [activeConversationId, markAsRead]);
+
+  // هنگام ارسال پیام جدید توسط کاربر
+  const prevCountRef = useRef(currentMessages.length);
+  useEffect(() => {
+    if (currentMessages.length > prevCountRef.current) {
+      const lastMsg = currentMessages[currentMessages.length - 1];
+      if (lastMsg?.isOutgoing) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        setShowScrollBottom(false);
+      }
     }
-  }, [currentMessages, editingMessage, activeConversationId]);
+    prevCountRef.current = currentMessages.length;
+  }, [currentMessages]);
 
   useEffect(() => {
     if (editingMessage) {
       inputRef.current?.focus();
     }
   }, [editingMessage]);
+
+  // رویداد اسکرول لیست پیام‌ها
+  const handleScroll = () => {
+    if (!messagesContainerRef.current || !activeConversation) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+    if (distanceFromBottom > 100) {
+      setShowScrollBottom(true);
+    } else {
+      setShowScrollBottom(false);
+      // اگر کاربر دستی به انتهای پیام‌ها رسید (تلورانس ۴۰ پیکسل)، خوانده شده ثبت کن
+      if ((activeConversation.unreadCount ?? 0) > 0 && distanceFromBottom <= 40) {
+        markAsRead(activeConversation.id);
+      }
+    }
+  };
+
+  // اکشن کلیک روی دکمه اسکرول به پایین
+  const handleScrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (activeConversation && (activeConversation.unreadCount ?? 0) > 0) {
+      markAsRead(activeConversation.id);
+    }
+    setShowScrollBottom(false);
+  };
 
   const handleScrollToMessage = (messageId: string | number) => {
     const targetElement = document.getElementById(`message-${messageId}`);
@@ -190,7 +259,6 @@ export const ChatArea: React.FC = () => {
     }
   };
 
-  // 👈 رفع باگ خروج از گروه یا کانال
   const handleLeaveGroup = () => {
     if (!activeConversation) return;
 
@@ -239,7 +307,7 @@ export const ChatArea: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-gray-50 dark:bg-gray-900 relative">
-      {/* Header */}
+      {/* هدر چت */}
       <div className="h-16 border-b border-gray-200 dark:border-gray-800 px-6 flex items-center justify-between bg-white dark:bg-gray-800 shadow-sm z-10">
         <div className="flex items-center space-x-3 space-x-reverse">
           <div className="relative">
@@ -287,8 +355,12 @@ export const ChatArea: React.FC = () => {
         />
       </div>
 
-      {/* Messages List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* لیست پیام‌ها */}
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
         {currentMessages.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs text-gray-400">
             پیامی در این گفتگو وجود ندارد.
@@ -308,7 +380,31 @@ export const ChatArea: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Edit bar */}
+      {/* دکمه شناور اسکرول به پایین به همراه نشانگر تعداد پیام‌های نخوانده */}
+      {showScrollBottom && (
+        <button
+          type="button"
+          onClick={handleScrollToBottom}
+          className={`absolute left-6 z-20 w-11 h-11 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-200 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 focus:outline-none group hover:scale-105 active:scale-95 ${
+            replyingTo || editingMessage ? "bottom-32" : "bottom-20"
+          }`}
+          title="اسکرول به آخرین پیام"
+          aria-label="اسکرول به پایین"
+        >
+          <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-300 group-hover:translate-y-0.5 transition-transform" />
+
+          {/* بج تعداد پیام‌های نخوانده */}
+          {Boolean(
+            activeConversation.unreadCount && activeConversation.unreadCount > 0,
+          ) && (
+            <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[11px] font-bold px-1.5 min-w-[20px] h-5 rounded-full flex items-center justify-center shadow border-2 border-white dark:border-gray-800 animate-pulse">
+              {activeConversation.unreadCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* نوار ویرایش */}
       {editingMessage && (
         <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center space-x-3 space-x-reverse overflow-hidden">
@@ -331,7 +427,7 @@ export const ChatArea: React.FC = () => {
         </div>
       )}
 
-      {/* Reply bar */}
+      {/* نوار ریپلای */}
       {replyingTo && !editingMessage && (
         <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center space-x-3 space-x-reverse overflow-hidden">
@@ -356,7 +452,7 @@ export const ChatArea: React.FC = () => {
         </div>
       )}
 
-      {/* Input or Restricted Banner */}
+      {/* فیلد ورودی پیام یا نوار محدودیت */}
       {isBlocked ? (
         <div className="p-4 bg-gray-100 dark:bg-gray-800 text-center text-rose-500 dark:text-rose-400 text-sm font-medium border-t border-gray-200 dark:border-gray-700">
           این کاربر مسدود شده است. امکان ارسال پیام وجود ندارد.
@@ -423,7 +519,7 @@ export const ChatArea: React.FC = () => {
         </form>
       )}
 
-      {/* Context menu */}
+      {/* منوی کلیک راست */}
       {contextMenu && (
         <MessageContextMenu
           x={contextMenu.x}
@@ -437,7 +533,7 @@ export const ChatArea: React.FC = () => {
         />
       )}
 
-      {/* Forward Modal */}
+      {/* مودال فوروارد */}
       <ForwardModal
         isOpen={Boolean(forwardingMessage)}
         message={forwardingMessage}

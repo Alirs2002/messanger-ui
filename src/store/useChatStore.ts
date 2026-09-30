@@ -38,11 +38,12 @@ interface ChatStore {
 
   // اکشن‌های مدیریت گفتگوها و سایدبار
   deleteConversation: (conversationId: string | number) => void;
-  leaveConversation: (conversationId: string | number) => void; // 👈 اضافه شد
+  leaveConversation: (conversationId: string | number) => void;
   clearChat: (conversationId: string | number) => void;
   togglePinConversation: (conversationId: string | number) => void;
   toggleMuteConversation: (conversationId: string | number) => void;
   toggleUnreadConversation: (conversationId: string | number) => void;
+  markAsRead: (conversationId: string | number) => void; // 👈 اکشن خوانده‌شدن پیام‌ها
 }
 
 const INITIAL_CONVERSATIONS: ConversationItem[] = [
@@ -64,7 +65,7 @@ const INITIAL_CONVERSATIONS: ConversationItem[] = [
     type: "CHANNEL",
     lastMessage: "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای اقدام فرمایید.",
     lastMessageTime: "۱۶:۱۰",
-    unreadCount: 0,
+    unreadCount: 40,
     isPinned: true,
     isMuted: true,
     isVerified: true,
@@ -114,7 +115,6 @@ const INITIAL_MESSAGES: Record<string | number, MessageItem[]> = {
     },
   ],
 
-  // ۲. پیام‌های کانال اطلاع‌رسانی (id: 2)
   2: [
     {
       id: 201,
@@ -154,8 +154,34 @@ const INITIAL_MESSAGES: Record<string | number, MessageItem[]> = {
     },
   ],
 
-  // ۳. پیام‌های گروه توسعه نرم‌افزار (id: 3)
   3: [
+    {
+      id: 297,
+      conversationId: 3,
+      senderId: 5,
+      senderName: "سارا احمدی",
+      text: "جلسه هماهنگی اسپرینت فردا صبح ساعت ۹ برگزار خواهد شد.",
+      createdAt: "دیروز",
+      isOutgoing: false,
+    },
+    {
+      id: 298,
+      conversationId: 3,
+      senderId: 6,
+      senderName: "امیرحسین رضایی",
+      text: "ممنون، استایل‌های جدید رو در فیگما آماده کردم.",
+      createdAt: "دیروز",
+      isOutgoing: false,
+    },
+    {
+      id: 299,
+      conversationId: 3,
+      senderId: 1,
+      text: "سلام به همگی، من کامپوننت‌های پایه رو پیاده کردم.",
+      createdAt: "دیروز",
+      isOutgoing: true,
+      status: "read",
+    },
     {
       id: 301,
       conversationId: 3,
@@ -212,7 +238,6 @@ const INITIAL_MESSAGES: Record<string | number, MessageItem[]> = {
     },
   ],
 
-  // ۴. گفتگوی شخصی محمد رضایی (id: 4)
   4: [
     {
       id: 401,
@@ -288,16 +313,19 @@ export const useChatStore = create<ChatStore>((set) => ({
   activeConversationId: null,
 
   setActiveConversation: (id) =>
-    set((state) => {
-      const updatedConversations = state.conversations.map((c) =>
-        String(c.id) === String(id) ? { ...c, unreadCount: 0 } : c,
-      );
-      return {
-        activeConversationId: id,
-        conversations: updatedConversations,
-        replyingTo: null,
-      };
+    set({
+      activeConversationId: id,
+      replyingTo: null,
     }),
+
+  markAsRead: (conversationId) =>
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        String(c.id) === String(conversationId)
+          ? { ...c, unreadCount: 0 }
+          : c,
+      ),
+    })),
 
   conversations: INITIAL_CONVERSATIONS,
   messages: INITIAL_MESSAGES,
