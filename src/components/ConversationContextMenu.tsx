@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import {
+  User,
   Pin,
   PinOff,
   Volume2,
@@ -16,6 +17,7 @@ interface ConversationContextMenuProps {
   y: number;
   conversation: ConversationItem;
   onClose: () => void;
+  onViewProfile?: (conversation: ConversationItem) => void;
   onTogglePin?: (conversation: ConversationItem) => void;
   onToggleMute?: (conversation: ConversationItem) => void;
   onToggleUnread?: (conversation: ConversationItem) => void;
@@ -30,6 +32,7 @@ export const ConversationContextMenu: React.FC<
   y,
   conversation,
   onClose,
+  onViewProfile,
   onTogglePin,
   onToggleMute,
   onToggleUnread,
@@ -62,7 +65,7 @@ export const ConversationContextMenu: React.FC<
 
   // جلوگیری از خروج منو از صفحه
   const menuWidth = 190;
-  const menuHeight = 220;
+  const menuHeight = 260;
   const adjustedX =
     x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 10 : x;
   const adjustedY =
@@ -87,6 +90,17 @@ export const ConversationContextMenu: React.FC<
       onClick={(e) => e.stopPropagation()}
     >
       <div className="py-0.5">
+        {/* مشاهده مشخصات / پروفایل */}
+        {onViewProfile && (
+          <button
+            onClick={() => handleAction(onViewProfile)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition text-right"
+          >
+            <span>مشاهده مشخصات</span>
+            <User className="w-4 h-4 text-emerald-500" />
+          </button>
+        )}
+
         {/* پین / برداشتن پین */}
         {onTogglePin && (
           <button
@@ -167,4 +181,5 @@ export const ConversationContextMenu: React.FC<
     </div>
   );
 };
+
 export default ConversationContextMenu;
