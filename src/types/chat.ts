@@ -42,4 +42,6 @@ export interface ConversationItem {
   isOnline?: boolean;
   isVerified?: boolean;
   isMuted?: boolean;
+  role?: "ADMIN" | "OWNER" | "MEMBER";
+  isAdmin?: boolean;
 }

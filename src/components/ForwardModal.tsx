@@ -7,9 +7,10 @@ import {
   User,
   Megaphone,
   Check,
+  Lock,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
-import type { MessageItem } from "../types/chat";
+import type { MessageItem, ConversationItem } from "../types/chat";
 
 interface ForwardModalProps {
   isOpen: boolean;
@@ -34,17 +35,37 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
 
   if (!isOpen || !message) return null;
 
+  // فیلتر کردن گفتگوها بر اساس عنوان
   const filteredConversations = conversations.filter((c) =>
     c.title.toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  // بررسی دسترسی ارسال پیام در گفتگوی مقصد
+  const canPostToConversation = (chat: ConversationItem) => {
+    const isChannel =
+      chat.type === "CHANNEL" || (chat as any).chatType === "channel";
+    if (!isChannel) return true;
+    return (
+      Boolean(chat.isAdmin) ||
+      chat.role === "ADMIN" ||
+      chat.role === "OWNER"
+    );
+  };
+
+  const handleSelectChat = (chat: ConversationItem) => {
+    if (!canPostToConversation(chat)) return;
+    setSelectedChatId(chat.id);
+  };
 
   const handleSendForward = () => {
     if (!selectedChatId) return;
 
     const targetChat = conversations.find((c) => c.id === selectedChatId);
+    if (!targetChat || !canPostToConversation(targetChat)) return;
+
     forwardMessage(selectedChatId, message, currentChatTitle);
 
-    if (onForwardSuccess && targetChat) {
+    if (onForwardSuccess) {
       onForwardSuccess(targetChat.title);
     }
     onClose();
@@ -108,6 +129,7 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
           ) : (
             filteredConversations.map((chat) => {
               const isSelected = selectedChatId === chat.id;
+              const hasPermission = canPostToConversation(chat);
               const chatType =
                 (chat as any).chatType ||
                 (chat as any).type?.toLowerCase?.() ||
@@ -116,11 +138,13 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
               return (
                 <div
                   key={chat.id}
-                  onClick={() => setSelectedChatId(chat.id)}
-                  className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition ${
-                    isSelected
-                      ? "bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800"
-                      : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                  onClick={() => handleSelectChat(chat)}
+                  className={`flex items-center justify-between p-2.5 rounded-xl transition ${
+                    !hasPermission
+                      ? "opacity-50 cursor-not-allowed bg-gray-50/50 dark:bg-gray-800/40"
+                      : isSelected
+                        ? "bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 cursor-pointer"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-700/50 cursor-pointer"
                   }`}
                 >
                   <div className="flex items-center space-x-3 space-x-reverse">
@@ -146,6 +170,11 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
                               ? "گروه"
                               : "کاربر"}
                         </span>
+                        {!hasPermission && (
+                          <span className="text-rose-500 font-medium mr-1">
+                            (فقط مدیران)
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -154,6 +183,10 @@ export const ForwardModal: React.FC<ForwardModalProps> = ({
                     <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
+                  )}
+
+                  {!hasPermission && (
+                    <Lock className="w-4 h-4 text-gray-400" />
                   )}
                 </div>
               );

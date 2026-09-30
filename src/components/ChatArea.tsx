@@ -9,12 +9,13 @@ import {
   MessageSquare,
   Check,
   Edit2,
+  Lock,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import MessageBubble from "./MessageBubble";
 import { MessageContextMenu } from "./MessageContextMenu";
 import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
-import { ForwardModal } from "./ForwardModal"; // اضافه شدن ایمپورت مودال بازارسال
+import { ForwardModal } from "./ForwardModal";
 import type { MessageItem } from "../types/chat";
 
 export const ChatArea: React.FC = () => {
@@ -30,11 +31,8 @@ export const ChatArea: React.FC = () => {
   } = useChatStore();
 
   const [messageText, setMessageText] = useState("");
-  const [editingMessage, setEditingMessage] = useState<MessageItem | null>(
-    null,
-  );
-  const [forwardingMessage, setForwardingMessage] =
-    useState<MessageItem | null>(null); // استیت فوروارد
+  const [editingMessage, setEditingMessage] = useState<MessageItem | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<MessageItem | null>(null);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -60,6 +58,16 @@ export const ChatArea: React.FC = () => {
     (activeConversation as any)?.chatType ||
     (activeConversation as any)?.type?.toLowerCase?.() ||
     "pv";
+
+  // بررسی وضعیت کانال و سطح دسترسی کاربر
+  const isChannel =
+    currentChatType === "channel" ||
+    (activeConversation as any)?.type === "CHANNEL";
+
+  const canPostInChannel =
+    Boolean((activeConversation as any)?.isAdmin) ||
+    (activeConversation as any)?.role === "ADMIN" ||
+    (activeConversation as any)?.role === "OWNER";
 
   useEffect(() => {
     if (!editingMessage) {
@@ -129,7 +137,6 @@ export const ChatArea: React.FC = () => {
     closeContextMenu();
   };
 
-  // هندلر جدید برای بازارسال
   const handleForwardMessage = (message: MessageItem) => {
     setForwardingMessage(message);
     closeContextMenu();
@@ -144,6 +151,8 @@ export const ChatArea: React.FC = () => {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !activeConversation) return;
+
+    if (isChannel && !canPostInChannel) return;
 
     if (editingMessage) {
       editMessage(activeConversation.id, editingMessage.id, messageText.trim());
@@ -313,10 +322,15 @@ export const ChatArea: React.FC = () => {
         </div>
       )}
 
-      {/* Input */}
+      {/* Input or Restricted Banner */}
       {isBlocked ? (
         <div className="p-4 bg-gray-100 dark:bg-gray-800 text-center text-rose-500 dark:text-rose-400 text-sm font-medium border-t border-gray-200 dark:border-gray-700">
           این کاربر مسدود شده است. امکان ارسال پیام وجود ندارد.
+        </div>
+      ) : isChannel && !canPostInChannel ? (
+        <div className="p-4 bg-gray-100 dark:bg-gray-800/90 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center space-x-2 space-x-reverse text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium select-none">
+          <Lock className="w-4 h-4 text-gray-400" />
+          <span>فقط مدیران می‌توانند در این کانال پیام ارسال کنند.</span>
         </div>
       ) : (
         <form
@@ -395,10 +409,6 @@ export const ChatArea: React.FC = () => {
         message={forwardingMessage}
         currentChatTitle={activeConversation?.title}
         onClose={() => setForwardingMessage(null)}
-        onForwardSuccess={(targetTitle) => {
-          // در صورت تمایل می‌توانید یک Toast (مثل react-hot-toast) اینجا فراخوانی کنید
-          // toast.success(`پیام به ${targetTitle} ارسال شد`);
-        }}
       />
     </div>
   );
