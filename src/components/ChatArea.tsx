@@ -129,6 +129,12 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleEditMessage = (message: MessageItem) => {
+    // پیام‌های دریافتی دیگران قابل ویرایش نیستند
+    if (!message.isOutgoing) {
+      alert("شما فقط می‌توانید پیام‌های ارسالی خود را ویرایش کنید.");
+      closeContextMenu();
+      return;
+    }
     setReplyingTo(null);
     setEditingMessage(message);
     setMessageText(message.text);
@@ -137,11 +143,18 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleDeleteMessage = (message: MessageItem) => {
+    // فقط پیام‌های خود کاربر (isOutgoing: true) قابل حذف هستند
+    if (!message.isOutgoing) {
+      alert("امکان حذف پیام‌های سایر اعضا وجود ندارد.");
+      closeContextMenu();
+      return;
+    }
     if (activeConversation) {
       deleteMessage(activeConversation.id, message.id);
     }
     closeContextMenu();
   };
+
 
   const handleForwardMessage = (message: MessageItem) => {
     setForwardingMessage(message);

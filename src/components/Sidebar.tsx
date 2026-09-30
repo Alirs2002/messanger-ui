@@ -15,6 +15,7 @@ const TABS: { id: ConversationType; label: string }[] = [
 export const Sidebar: React.FC = () => {
   const {
     conversations,
+    messages, // اضافه شد جهت همگام‌سازی بی‌درنگ پیام آخر
     activeConversationId,
     setActiveConversation,
     activeTab,
@@ -28,15 +29,13 @@ export const Sidebar: React.FC = () => {
     deleteConversation,
   } = useChatStore();
 
-  // استیت نگهداری موقعیت و گفتگوی منوی راست‌کلیک
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
     conversation: ConversationItem;
   } | null>(null);
 
-  // فیلتر و مرتب‌سازی: گفتگوهای پین‌شده همواره در بالای لیست قرار می‌گیرند
-  const filteredAndSortedConversations = [...conversations]
+  const filteredSortedConversations = [...conversations]
     .filter((item) => {
       const matchesTab = activeTab === "ALL" || item.type === activeTab;
       const matchesSearch =
@@ -66,7 +65,7 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside className="w-full md:w-96 h-screen flex flex-col bg-white dark:bg-gray-900 border-l border-slate-200 dark:border-gray-800 select-none">
-      {/* هدر و سرچ */}
+      {/* هدر و جستجو */}
       <div className="p-3 border-b border-slate-100 dark:border-gray-800 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <button className="p-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-xl transition text-slate-600 dark:text-gray-300">
@@ -108,13 +107,28 @@ export const Sidebar: React.FC = () => {
 
       {/* لیست گفتگوها */}
       <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-gray-800/60">
-        {filteredAndSortedConversations.length === 0 ? (
+        {filteredSortedConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-400 text-xs">
             گفتگویی یافت نشد
           </div>
         ) : (
-          filteredAndSortedConversations.map((chat) => {
+          filteredSortedConversations.map((chat) => {
             const isSelected = String(activeConversationId) === String(chat.id);
+
+            // استخراج آخرین پیام و زمان واقعی از استور
+            const chatMessages =
+              messages[chat.id] || messages[String(chat.id)] || [];
+            const realLastMsg =
+              chatMessages.length > 0
+                ? chatMessages[chatMessages.length - 1]
+                : null;
+
+            const displayLastMessage = realLastMsg
+              ? realLastMsg.text
+              : chat.lastMessage;
+            const displayLastTime = realLastMsg
+              ? realLastMsg.createdAt
+              : chat.lastMessageTime;
 
             return (
               <div
@@ -151,13 +165,13 @@ export const Sidebar: React.FC = () => {
                       )}
                     </div>
                     <span className="text-[11px] text-slate-400 whitespace-nowrap">
-                      {chat.lastMessageTime}
+                      {displayLastTime}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400">
                     <p className="truncate text-xs max-w-[200px]">
-                      {chat.lastMessage}
+                      {displayLastMessage}
                     </p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {chat.isMuted && (
@@ -186,7 +200,7 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
 
-      {/* منوی راست‌کلیک گفتگو */}
+      {/* منوی راست‌کلیک */}
       {contextMenu && (
         <ConversationContextMenu
           x={contextMenu.x}

@@ -49,9 +49,9 @@ const INITIAL_CONVERSATIONS: ConversationItem[] = [
     id: 1,
     title: "پشتیبانی مرکزی رسالت",
     type: "SUPPORT",
-    lastMessage: "درخواست شما با موفقیت ثبت شد.",
-    lastMessageTime: "۱۲:۳۴",
-    unreadCount: 2,
+    lastMessage: "سلام، برای پیگیری وضعیت درخواست وام سوال داشتم.",
+    lastMessageTime: "۱۲:۳۲",
+    unreadCount: 0,
     isPinned: true,
     isMuted: false,
     isVerified: true,
@@ -59,31 +59,31 @@ const INITIAL_CONVERSATIONS: ConversationItem[] = [
   },
   {
     id: 2,
-    title: "گروه توسعه نرم‌افزار",
-    type: "GROUP",
-    lastMessage: "علی: کامپوننت جدید سایدبار مرج شد.",
-    lastMessageTime: "۱۰:۱۵",
-    unreadCount: 5,
+    title: "کانال اطلاع‌رسانی",
+    type: "CHANNEL",
+    lastMessage: "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای اقدام فرمایید.",
+    lastMessageTime: "۱۶:۱۰",
+    unreadCount: 0,
     isPinned: true,
-    isMuted: false,
+    isMuted: true,
+    isVerified: true,
   },
   {
     id: 3,
-    title: "کانال اطلاع‌رسانی",
-    type: "CHANNEL",
-    lastMessage: "نسخه جدید پیام‌رسان منتشر شد.",
-    lastMessageTime: "دیروز",
-    unreadCount: 0,
+    title: "گروه توسعه نرم‌افزار",
+    type: "GROUP",
+    lastMessage: "علی: عالیه، اگر کامپوننت جدیدی نیاز بود بگید تا سریع اضافه کنم.",
+    lastMessageTime: "۰۹:۱۵",
+    unreadCount: 3,
     isPinned: false,
-    isMuted: true,
-    isVerified: true,
+    isMuted: false,
   },
   {
     id: 4,
     title: "محمد رضایی",
     type: "PERSONAL",
-    lastMessage: "سلام، فایل‌ها رو بررسی کردی؟",
-    lastMessageTime: "شنبه",
+    lastMessage: "ممنون، منتظرم.",
+    lastMessageTime: "۱۰:۱۷",
     unreadCount: 0,
     isPinned: false,
     isMuted: false,
@@ -112,113 +112,107 @@ const INITIAL_MESSAGES: Record<string | number, MessageItem[]> = {
       status: "read",
     },
   ],
-// در src/store/useChatStore.ts داخل آبجکت INITIAL_MESSAGES:
 
-// -------------------------------------------------------------
-// ۱. پیام‌های کانال (یک‌طرفه، اطلاعیه‌ای و اخبار) - فرضاً id: 2
-// -------------------------------------------------------------
-2: [
-  {
-    id: 201,
-    conversationId: 2,
-    senderId: 99,
-    senderName: "کانال اطلاع‌رسانی",
-    text: "📢 به کانال رسمی اطلاع‌رسانی خوش آمدید. تمامی اطلاعیه‌ها و رویدادهای جدید از این پس از طریق این کانال منتشر خواهد شد.",
-    createdAt: "۰۸:۳۰",
-    isOutgoing: false,
-  },
-  {
-    id: 202,
-    conversationId: 2,
-    senderId: 99,
-    senderName: "کانال اطلاع‌رسانی",
-    text: "⚙️ گزارش به‌روزرسانی سیستم:\nنسخه جدید پلتفرم با بهینه‌سازی سرعت و بهبود رابط کاربری منتشر شد. برای تجربه بهتر لطفاً صفحه را رفرش فرمایید.",
-    createdAt: "۱۱:۴۵",
-    isOutgoing: false,
-  },
-  {
-    id: 203,
-    conversationId: 2,
-    senderId: 99,
-    senderName: "کانال اطلاع‌رسانی",
-    text: "🗓️ یادآوری: جلسه عمومی ارائه گزارش عملکرد ماهانه فردا ساعت ۱۰:۰۰ به صورت آنلاین برگزار خواهد شد.",
-    createdAt: "۱۴:۲۰",
-    isOutgoing: false,
-  },
-  {
-    id: 204,
-    conversationId: 2,
-    senderId: 99,
-    senderName: "کانال اطلاع‌رسانی",
-    text: "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای حساب خود اقدام فرمایید.",
-    createdAt: "۱۶:۱۰",
-    isOutgoing: false,
-  },
-],
+  // ۲. پیام‌های کانال اطلاع‌رسانی (id: 2)
+  2: [
+    {
+      id: 201,
+      conversationId: 2,
+      senderId: 99,
+      senderName: "کانال اطلاع‌رسانی",
+      text: "📢 به کانال رسمی اطلاع‌رسانی خوش آمدید. تمامی اطلاعیه‌ها و رویدادهای جدید از این پس از طریق این کانال منتشر خواهد شد.",
+      createdAt: "۰۸:۳۰",
+      isOutgoing: false,
+    },
+    {
+      id: 202,
+      conversationId: 2,
+      senderId: 99,
+      senderName: "کانال اطلاع‌رسانی",
+      text: "⚙️ گزارش به‌روزرسانی سیستم:\nنسخه جدید پلتفرم با بهینه‌سازی سرعت و بهبود رابط کاربری منتشر شد.",
+      createdAt: "۱۱:۴۵",
+      isOutgoing: false,
+    },
+    {
+      id: 203,
+      conversationId: 2,
+      senderId: 99,
+      senderName: "کانال اطلاع‌رسانی",
+      text: "🗓️ یادآوری: جلسه عمومی ارائه گزارش عملکرد ماهانه فردا ساعت ۱۰:۰۰ به صورت آنلاین برگزار خواهد شد.",
+      createdAt: "۱۴:۲۰",
+      isOutgoing: false,
+    },
+    {
+      id: 204,
+      conversationId: 2,
+      senderId: 99,
+      senderName: "کانال اطلاع‌رسانی",
+      text: "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای اقدام فرمایید.",
+      createdAt: "۱۶:۱۰",
+      isOutgoing: false,
+    },
+  ],
 
-// -------------------------------------------------------------
-// ۲. پیام‌های گروه (مکالمه تعاملی و تیمی بین چند نفر) - فرضاً id: 3
-// -------------------------------------------------------------
-3: [
-  {
-    id: 301,
-    conversationId: 3,
-    senderId: 5,
-    senderName: "سارا احمدی",
-    text: "سلام همگی، صبح روز سه‌شنبه بخیر 🌸",
-    createdAt: "۰۹:۰۰",
-    isOutgoing: false,
-  },
-  {
-    id: 302,
-    conversationId: 3,
-    senderId: 6,
-    senderName: "امیرحسین رضایی",
-    text: "سلام سارا خانم، روزتون بخیر. بچه‌ها تغییرات تسک‌های اسپرینت روی بورد ثبت شد؟",
-    createdAt: "۰۹:۰۴",
-    isOutgoing: false,
-  },
-  {
-    id: 303,
-    conversationId: 3,
-    senderId: 1, // کاربر جاری
-    text: "سلام به همگی. بله، تسک‌های مربوط به پیام‌رسان و رفع باگ تایپ‌اسکریپت نهایی شده.",
-    createdAt: "۰۹:۰۷",
-    isOutgoing: true,
-    status: "read",
-  },
-  {
-    id: 304,
-    conversationId: 3,
-    senderId: 5,
-    senderName: "سارا احمدی",
-    text: "دستت درد نکنه علی جان، من بخش طراحی UI رو بازبینی کردم، عالی شده.",
-    createdAt: "۰۹:۱۰",
-    isOutgoing: false,
-  },
-  {
-    id: 305,
-    conversationId: 3,
-    senderId: 6,
-    senderName: "امیرحسین رضایی",
-    text: "فقط تست اندپوینت‌های سوکت موند که تا ظهر جمعش می‌کنیم.",
-    createdAt: "۰۹:۱۲",
-    isOutgoing: false,
-  },
-  {
-    id: 306,
-    conversationId: 3,
-    senderId: 1, // کاربر جاری
-    text: "عالیه، اگر کامپوننت جدیدی نیاز بود بگید تا سریع اضافه کنم.",
-    createdAt: "۰۹:۱۵",
-    isOutgoing: true,
-    status: "sent",
-  },
-],
+  // ۳. پیام‌های گروه توسعه نرم‌افزار (id: 3)
+  3: [
+    {
+      id: 301,
+      conversationId: 3,
+      senderId: 5,
+      senderName: "سارا احمدی",
+      text: "سلام همگی، صبح روز سه‌شنبه بخیر 🌸",
+      createdAt: "۰۹:۰۰",
+      isOutgoing: false,
+    },
+    {
+      id: 302,
+      conversationId: 3,
+      senderId: 6,
+      senderName: "امیرحسین رضایی",
+      text: "سلام سارا خانم، روزتون بخیر. بچه‌ها تغییرات تسک‌های اسپرینت روی بورد ثبت شد؟",
+      createdAt: "۰۹:۰۴",
+      isOutgoing: false,
+    },
+    {
+      id: 303,
+      conversationId: 3,
+      senderId: 1,
+      text: "سلام به همگی. بله، تسک‌های مربوط به پیام‌رسان و رفع باگ تایپ‌اسکریپت نهایی شده.",
+      createdAt: "۰۹:۰۷",
+      isOutgoing: true,
+      status: "read",
+    },
+    {
+      id: 304,
+      conversationId: 3,
+      senderId: 5,
+      senderName: "سارا احمدی",
+      text: "دستت درد نکنه علی جان، من بخش طراحی UI رو بازبینی کردم، عالی شده.",
+      createdAt: "۰۹:۱۰",
+      isOutgoing: false,
+    },
+    {
+      id: 305,
+      conversationId: 3,
+      senderId: 6,
+      senderName: "امیرحسین رضایی",
+      text: "فقط تست اندپوینت‌های سوکت موند که تا ظهر جمعش می‌کنیم.",
+      createdAt: "۰۹:۱۲",
+      isOutgoing: false,
+    },
+    {
+      id: 306,
+      conversationId: 3,
+      senderId: 1,
+      text: "عالیه، اگر کامپوننت جدیدی نیاز بود بگید تا سریع اضافه کنم.",
+      createdAt: "۰۹:۱۵",
+      isOutgoing: true,
+      status: "sent",
+    },
+  ],
 
-  // در فایل src/store/useChatStore.ts، بخش مربوط به conversationId: 4 را با این لیست جایگزین کنید:
-
-4: [
+  // ۴. گفتگوی شخصی محمد رضایی (id: 4)
+  4: [
     {
       id: 401,
       conversationId: 4,
@@ -283,7 +277,6 @@ const INITIAL_MESSAGES: Record<string | number, MessageItem[]> = {
       isOutgoing: false,
     },
   ],
-
 };
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -505,7 +498,6 @@ export const useChatStore = create<ChatStore>((set) => ({
       };
     }),
 
-  // توابع کنترل وضعیت سایدبار
   togglePinConversation: (conversationId) =>
     set((state) => ({
       conversations: state.conversations.map((c) =>

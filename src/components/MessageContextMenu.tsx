@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Forward } from "lucide-react";
+import { Reply, Forward, Copy, Check, Edit3, Trash2 } from "lucide-react";
 import type { MessageItem } from "../types/chat";
 
 interface MessageContextMenuProps {
@@ -10,7 +10,7 @@ interface MessageContextMenuProps {
   onReply?: (message: MessageItem) => void;
   onEdit?: (message: MessageItem) => void;
   onDelete?: (message: MessageItem) => void;
-  onForward?: (message: MessageItem) => void; // اکشن جدید
+  onForward?: (message: MessageItem) => void;
 }
 
 export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
@@ -47,13 +47,14 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
     };
   }, [onClose]);
 
-  const menuWidth = 160;
-  const menuHeight = 220; // ارتفاع را به دلیل اضافه شدن گزینه جدید کمی بیشتر در نظر می‌گیریم
+  // تنظیم موقعیت منو جهت جلوگیری از بیرون‌زدگی از لبه‌های صفحه
+  const menuWidth = 165;
+  const menuHeight = message.isOutgoing ? 220 : 130; // ارتفاع پویا براساس نوع پیام
   const adjustedX =
-    x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 10 : x;
+    x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 12 : x;
   const adjustedY =
     y + menuHeight > window.innerHeight
-      ? window.innerHeight - menuHeight - 10
+      ? window.innerHeight - menuHeight - 12
       : y;
 
   const handleCopy = () => {
@@ -63,7 +64,7 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
       setTimeout(() => {
         setCopied(false);
         onClose();
-      }, 1000);
+      }, 800);
     }
   };
 
@@ -71,125 +72,82 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
     <div
       ref={menuRef}
       style={{ top: `${adjustedY}px`, left: `${adjustedX}px` }}
-      className="fixed z-50 w-40 rounded-xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 p-1 text-sm text-gray-700 dark:text-gray-200"
+      className="fixed z-50 w-40 rounded-xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700/80 p-1 text-sm text-gray-700 dark:text-gray-200 select-none animate-in fade-in zoom-in-95 duration-100"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* دکمه پاسخ */}
+      {/* پاسخ دادن */}
       {onReply && (
         <button
           onClick={() => {
             onReply(message);
             onClose();
           }}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
         >
           <span>پاسخ</span>
-          <svg
-            className="w-4 h-4 opacity-70"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-            ></path>
-          </svg>
+          <Reply className="w-4 h-4 text-gray-500 dark:text-gray-400" />
         </button>
       )}
 
-      {/* دکمه بازارسال */}
+      {/* بازارسال (Forward) */}
       {onForward && (
         <button
           onClick={() => {
             onForward(message);
             onClose();
           }}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
         >
           <span>بازارسال</span>
-          <Forward className="w-4 h-4 text-sky-500 opacity-80" />
+          <Forward className="w-4 h-4 text-sky-500" />
         </button>
       )}
 
-      {/* دکمه کپی */}
+      {/* کپی متن */}
       {message.text && (
         <button
           onClick={handleCopy}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
         >
           <span>{copied ? "کپی شد" : "کپی متن"}</span>
-          <svg
-            className="w-4 h-4 opacity-70"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-            ></path>
-          </svg>
+          {copied ? (
+            <Check className="w-4 h-4 text-emerald-500" />
+          ) : (
+            <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          )}
         </button>
       )}
 
-      {/* دکمه ویرایش (فقط پیام‌های ارسالی کاربر) */}
+      {/* ویرایش (فقط پیام‌های ارسال‌شده توسط کاربر) */}
       {message.isOutgoing && onEdit && (
         <button
           onClick={() => {
             onEdit(message);
             onClose();
           }}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
         >
           <span>ویرایش</span>
-          <svg
-            className="w-4 h-4 opacity-70"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-            ></path>
-          </svg>
+          <Edit3 className="w-4 h-4 text-amber-500" />
         </button>
       )}
 
-      {onDelete && (
+      {/* خط جداکننده قبل از حذف (فقط برای پیام‌های کاربر) */}
+      {message.isOutgoing && onDelete && (
         <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
       )}
 
-      {/* دکمه حذف */}
-      {onDelete && (
+      {/* حذف پیام (فقط پیام‌های ارسال‌شده توسط خود کاربر) */}
+      {message.isOutgoing && onDelete && (
         <button
           onClick={() => {
             onDelete(message);
             onClose();
           }}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 dark:hover:bg-red-900/30 dark:text-red-400 transition"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 transition"
         >
           <span>حذف پیام</span>
-          <svg
-            className="w-4 h-4 opacity-70"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            ></path>
-          </svg>
+          <Trash2 className="w-4 h-4" />
         </button>
       )}
     </div>
