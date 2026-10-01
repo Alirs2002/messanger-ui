@@ -38,6 +38,7 @@ interface ChatStore {
 
   // اکشن‌های مدیریت گفتگوها و سایدبار
   deleteConversation: (conversationId: string | number) => void;
+  receiveLiveMessage: (payload: any, currentUserId: number | string) => void;
   leaveConversation: (conversationId: string | number) => void;
   clearChat: (conversationId: string | number) => void;
   togglePinConversation: (conversationId: string | number) => void;
@@ -63,7 +64,8 @@ const INITIAL_CONVERSATIONS: ConversationItem[] = [
     id: 2,
     title: "کانال اطلاع‌رسانی",
     type: "CHANNEL",
-    lastMessage: "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای اقدام فرمایید.",
+    lastMessage:
+      "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای اقدام فرمایید.",
     lastMessageTime: "۱۶:۱۰",
     unreadCount: 40,
     isPinned: true,
@@ -74,7 +76,8 @@ const INITIAL_CONVERSATIONS: ConversationItem[] = [
     id: 3,
     title: "گروه توسعه نرم‌افزار",
     type: "GROUP",
-    lastMessage: "علی: عالیه، اگر کامپوننت جدیدی نیاز بود بگید تا سریع اضافه کنم.",
+    lastMessage:
+      "علی: عالیه، اگر کامپوننت جدیدی نیاز بود بگید تا سریع اضافه کنم.",
     lastMessageTime: "۰۹:۱۵",
     unreadCount: 3,
     isPinned: false,
@@ -321,9 +324,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   markAsRead: (conversationId) =>
     set((state) => ({
       conversations: state.conversations.map((c) =>
-        String(c.id) === String(conversationId)
-          ? { ...c, unreadCount: 0 }
-          : c,
+        String(c.id) === String(conversationId) ? { ...c, unreadCount: 0 } : c,
       ),
     })),
 
@@ -379,6 +380,72 @@ export const useChatStore = create<ChatStore>((set) => ({
         replyingTo: null,
       };
     }),
+  receiveLiveMessage: (payload: any, currentUserId: number | string) => {
+    // استخراج اطلاعات بر اساس پِی‌لود دریافتی از سرور
+    const conversationId = payload.conversationId || payload.chatId;
+    if (!conversationId) return;
+
+    const isMe =
+      Number(payload.senderId || payload.userId) === Number(currentUserId);
+
+    const newMsg: MessageItem = {
+      id: payload.id || Date.now(),
+      isOutgoing: isMe,
+      text: payload.content || payload.message || payload.text || "",
+      isMe,
+      createdAt: payload.createdAt
+        ? new Date(payload.createdAt).toLocaleTimeString("fa-IR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : new Date().toLocaleTimeString("fa-IR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+      status: "delivered",
+      replyToMessage: payload.replyRef
+        ? {
+            id: payload.replyRef.id,
+            text: payload.replyRef.content || payload.replyRef.text || "",
+            senderName: payload.replyRef.senderName || "",
+          }
+        : undefined,
+    };
+
+    set((state) => {
+      const currentList = state.messages[conversationId] || [];
+      // جلوگیری از ثبت پیام تکراری
+      if (currentList.some((m) => m.id === newMsg.id)) {
+        return state;
+      }
+
+      const updatedMessages = [...currentList, newMsg];
+      const isCurrentActive = state.activeConversationId === conversationId;
+
+      const updatedConversations = state.conversations.map((c) => {
+        if (String(c.id) === String(conversationId)) {
+          return {
+            ...c,
+            lastMessage: newMsg.text,
+            lastMessageTime: newMsg.createdAt,
+            unreadCount:
+              isCurrentActive || isMe
+                ? c.unreadCount
+                : (c.unreadCount || 0) + 1,
+          };
+        }
+        return c;
+      });
+
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: updatedMessages,
+        },
+        conversations: updatedConversations,
+      };
+    });
+  },
 
   deleteConversation: (conversationId) =>
     set((state) => {
