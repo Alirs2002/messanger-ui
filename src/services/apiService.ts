@@ -1,8 +1,7 @@
 import { authStorage } from "./auth";
 import type { ConversationItem } from "../types/chat";
 
-//const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-const BASE_URL = "/api-proxy";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/messenger/api";
 
 // ─── Generic fetch wrapper ───────────────────────────────────────────────────
 
@@ -10,7 +9,6 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  // توکن به صورت مستقیم از authStorage خوانده می‌شود
   const token = authStorage.getToken();
 
   const headers: Record<string, string> = {
@@ -25,10 +23,21 @@ async function apiFetch<T>(
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
   if (!res.ok) {
+    const errorText = await res.text();
+    console.error(`[API Error] ${res.status} ${res.statusText}:`, errorText);
     throw new Error(`[API] ${res.status} ${res.statusText} — ${path}`);
   }
 
-  return res.json() as Promise<T>;
+  const rawText = await res.text();
+  try {
+    return JSON.parse(rawText) as T;
+  } catch (err) {
+    console.error(
+      `[API Parse Error] Response is not valid JSON. First 200 chars:`,
+      rawText.slice(0, 200),
+    );
+    throw err;
+  }
 }
 
 // ─── Raw API types (mirrors backend shape) ───────────────────────────────────
@@ -52,11 +61,26 @@ export interface ConversationRaw {
   role?: "ADMIN" | "OWNER" | "MEMBER";
 }
 
+// Inner page object nested under `conversations`
 export interface ConversationPage {
   content: ConversationRaw[];
   number: number;
   totalPages: number;
   totalElements: number;
+  last: boolean;
+  first: boolean;
+  size: number;
+}
+
+// Actual root response shape from the backend
+export interface ConversationsResponse {
+  conversations: ConversationPage;
+  specificMessage1: string | null;
+  specificMessage2: string | null;
+  unreadCount: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  allUnreadCounts: Record<string, number>;
 }
 
 // ─── Mapper ──────────────────────────────────────────────────────────────────
@@ -94,6 +118,8 @@ export const conversationsApi = {
     if (type && type !== "ALL") {
       query.append("type", type);
     }
-    return apiFetch<ConversationPage>(`/conversations?${query.toString()}`);
+    return apiFetch<ConversationsResponse>(
+      `/conversations?${query.toString()}`,
+    );
   },
 };

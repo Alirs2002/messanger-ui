@@ -27,7 +27,7 @@ class StompService {
     this.client = new Client({
       brokerURL: socketUrl,
       connectHeaders: {
-        Authorization: token, // توکن خام بدون Bearer
+        Authorization: token.startsWith("Bearer ") ? token : `Bearer ${token}`, // توکن خام بدون Bearer
       },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,

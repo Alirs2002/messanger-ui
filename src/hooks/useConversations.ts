@@ -14,8 +14,10 @@ export function useConversations() {
     }
 
     try {
-      const page = await conversationsApi.list(0, 100, "");
-      setConversations(page.content.map(mapConversation));
+      const response = await conversationsApi.list(0, 100, "");
+      // دسترسی به content از داخل conversations
+      const items = response.conversations?.content ?? [];
+      setConversations(items.map(mapConversation));
     } catch (err) {
       console.error("[useConversations] fetch failed:", err);
     }
