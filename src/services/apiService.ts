@@ -123,3 +123,107 @@ export const conversationsApi = {
     );
   },
 };
+// ─── RSC Parser ──────────────────────────────────────────────────────────────
+
+function parseRSC<T>(text: string): T {
+  const lines = text.trim().split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("1:")) {
+      try {
+        return JSON.parse(trimmed.slice(2)) as T;
+      } catch {
+        throw new Error(
+          `[parseRSC] JSON parse failed: ${trimmed.slice(0, 100)}`,
+        );
+      }
+    }
+  }
+  throw new Error('[parseRSC] No data line found (expected "1:...")');
+}
+
+// ─── Message types ────────────────────────────────────────────────────────────
+
+export interface MessageRaw {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName?: string;
+  senderAvatar?: string;
+  content: string;
+  type: "TEXT" | "IMAGE" | "FILE" | "VOICE" | "VIDEO" | "STICKER";
+  createdAt: string;
+  editedAt?: string;
+  replyTo?: string;
+  isRead?: boolean;
+  isDelivered?: boolean;
+  isMine?: boolean;
+}
+
+export interface MessagePage {
+  content: MessageRaw[];
+  number: number;
+  totalPages: number;
+  totalElements: number;
+  last: boolean;
+  first: boolean;
+  size: number;
+}
+
+export interface ConversationDetail {
+  conversation: {
+    id: string;
+    title: string;
+    avatar?: string;
+    targetType: string;
+  };
+  messages: MessagePage;
+  opponentStatus: "ONLINE" | "OFFLINE";
+  hasPrevious: boolean;
+  hasNext: boolean;
+}
+
+// ─── Messages API ─────────────────────────────────────────────────────────────
+
+export const messagesApi = {
+  async getConversationDetail(
+    conversationId: string,
+    pageNo = 0,
+    pageSize = 100,
+  ): Promise<ConversationDetail> {
+    const path = `/conversations/${conversationId}`;
+    const token = authStorage.getToken();
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify([
+        "Get",
+        { PageNo: pageNo, PageSize: pageSize, type: "" },
+        {},
+        path,
+        true,
+      ]),
+    });
+
+    if (!res.ok) {
+      throw new Error(`[messagesApi] ${res.status} ${res.statusText}`);
+    }
+
+    const text = await res.text();
+    return parseRSC<ConversationDetail>(text);
+  },
+
+  async getNextPage(
+    conversationId: string,
+    pageNo: number,
+    pageSize = 50,
+  ): Promise<ConversationDetail> {
+    return this.getConversationDetail(conversationId, pageNo, pageSize);
+  },
+};
