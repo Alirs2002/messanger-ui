@@ -1,7 +1,8 @@
 import { authStorage } from "./auth";
 import type { ConversationItem } from "../types/chat";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+//const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const BASE_URL = "/api-proxy";
 
 // ─── Generic fetch wrapper ───────────────────────────────────────────────────
 
@@ -9,6 +10,7 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  // توکن به صورت مستقیم از authStorage خوانده می‌شود
   const token = authStorage.getToken();
 
   const headers: Record<string, string> = {
@@ -63,10 +65,8 @@ export function mapConversation(raw: ConversationRaw): ConversationItem {
   return {
     id: raw.id,
     title: raw.title,
-    //type: raw.targetType ?? 'PERSONAL',
     type:
       (raw.targetType === "ALL" ? "PERSONAL" : raw.targetType) ?? "PERSONAL",
-
     avatar: raw.avatar,
     lastMessage: raw.lastMessage,
     lastMessageTime: raw.lastMessageTime,
@@ -86,8 +86,14 @@ export function mapConversation(raw: ConversationRaw): ConversationItem {
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 export const conversationsApi = {
-  list: (pageNo = 0, pageSize = 100, type = "") =>
-    apiFetch<ConversationPage>(
-      `/messenger/api/conversations?type=${type}&PageNo=${pageNo}&PageSize=${pageSize}`,
-    ),
+  list: (pageNo = 0, pageSize = 100, type = "") => {
+    const query = new URLSearchParams({
+      PageNo: pageNo.toString(),
+      PageSize: pageSize.toString(),
+    });
+    if (type && type !== "ALL") {
+      query.append("type", type);
+    }
+    return apiFetch<ConversationPage>(`/conversations?${query.toString()}`);
+  },
 };
