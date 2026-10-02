@@ -1,26 +1,33 @@
-// codes/src/hooks/useChatSocket.ts
-import { useEffect } from "react";
-import stompService from "../services/stompService";
+import { useEffect, useRef } from "react";
+import { stompService } from "../services/stompService";
+import { authStorage } from "../services/auth";
 import { useChatStore } from "../store/useChatStore";
 
-export const useChatSocket = (
-  token?: string | null,
-  userId?: number | string | null,
-) => {
-  const receiveLiveMessage = useChatStore((state) => state.receiveLiveMessage);
+export function useChatSocket() {
+  const receiveLiveMessage = useChatStore((s) => s.receiveLiveMessage);
+  const connectedRef = useRef(false);
 
   useEffect(() => {
-    // اگر توکن یا آیدی کاربر موجود نیست، اتصال برقرار نشود
-    if (!token || !userId) return;
+    const token = authStorage.getToken();
+    const userId = authStorage.getUserId();
 
-    // برقراری اتصال و دریافت آنی پیام‌ها
-    stompService.connect(token, userId, (socketData) => {
-      receiveLiveMessage(socketData, userId);
+    if (!token || !userId) {
+      console.warn(
+        "[useChatSocket] missing token or userId — socket not started",
+      );
+      return;
+    }
+
+    if (connectedRef.current) return;
+    connectedRef.current = true;
+
+    stompService.connect(token, userId, (payload) => {
+      receiveLiveMessage(payload, userId);
     });
 
-    // هنگام Unmount شدن، اتصال قطع شود
     return () => {
       stompService.disconnect();
+      connectedRef.current = false;
     };
-  }, [token, userId, receiveLiveMessage]);
-};
+  }, [receiveLiveMessage]);
+}

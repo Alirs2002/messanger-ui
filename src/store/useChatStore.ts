@@ -14,6 +14,7 @@ interface ChatStore {
   setActiveConversation: (id: string | number | null) => void;
   conversations: ConversationItem[];
   messages: Record<string | number, MessageItem[]>;
+  setConversations: (conversations: ConversationItem[]) => void;
 
   // استیت و اکشن ریپلای
   replyingTo: MessageItem | null;
@@ -327,6 +328,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         String(c.id) === String(conversationId) ? { ...c, unreadCount: 0 } : c,
       ),
     })),
+  setConversations: (conversations) => set({ conversations }),
 
   conversations: INITIAL_CONVERSATIONS,
   messages: INITIAL_MESSAGES,
