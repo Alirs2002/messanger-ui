@@ -1,4 +1,3 @@
-// codes/vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -8,18 +7,15 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      // مسیرهای API REST
-      "/api": {
-        target: "http://www.mresalat.ir", // آدرس پایه سرور را اینجا قرار بده (مثلا http://localhost:8080)
+      "/messenger": {
+        target: "https://api.mresalat.ir",
         changeOrigin: true,
         secure: false,
-      },
-      // مسیر اتصال WebSocket (STOMP) - معمولاً در اسپرینگ /ws یا /stomp است
-      "/ws": {
-        target: "ws://www.mresalat.ir",
-        ws: true, // فعال کردن پراکسی وب‌سوکت
-        changeOrigin: true,
-        secure: false,
+        ws: true,
+        headers: {
+          host: "api.mresalat.ir",
+          origin: "https://api.mresalat.ir",
+        },
       },
     },
   },

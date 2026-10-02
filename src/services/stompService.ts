@@ -17,8 +17,12 @@ class StompService {
     }
 
     // آدرس پایه وب‌سوکت
-    const baseUrl = import.meta.env.VITE_BASE_URL || "https://www.mresalat.ir";
-    const socketUrl = `${baseUrl.replace(/^http/, "ws")}/messenger/websocket`;
+    //const baseUrl = import.meta.env.VITE_BASE_URL || "https://api.mresalat.ir";
+    //const socketUrl = `${baseUrl.replace(/^http/, "ws")}/messenger/websocket`;
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const socketUrl = import.meta.env.DEV
+      ? `${protocol}//${window.location.host}/messenger/websocket`
+      : `${(import.meta.env.VITE_BASE_URL || "https://api.mresalat.ir").replace(/^http/, "ws")}/messenger/websocket`;
 
     this.client = new Client({
       brokerURL: socketUrl,
