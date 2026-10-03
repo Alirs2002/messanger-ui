@@ -5,41 +5,19 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/conversations": {
-        target: "https://api.mresalat.ir",
-        changeOrigin: true,
-        rewrite: (path) => `/messenger/api${path}`,
-      },
-      "/messages": {
-        target: "https://api.mresalat.ir",
-        changeOrigin: true,
-        rewrite: (path) => `/messenger/api${path}`,
-      },
-      "/users": {
-        target: "https://api.mresalat.ir",
-        changeOrigin: true,
-        rewrite: (path) => `/messenger/api${path}`,
-      },
-      "/groups": {
-        target: "https://api.mresalat.ir",
-        changeOrigin: true,
-        rewrite: (path) => `/messenger/api${path}`,
-      },
-      "/auth": {
-        target: "https://api.mresalat.ir",
-        changeOrigin: true,
-        rewrite: (path) => `/messenger/api${path}`,
-      },
-      "/files": {
-        target: "https://api.mresalat.ir",
-        changeOrigin: true,
-        rewrite: (path) => `/messenger/api${path}`,
-      },
-      "/messenger": {
+      // فقط یک پروکسی جامع برای مسیرهای API نیاز داریم
+      "/messenger/api": {
         target: "https://api.mresalat.ir",
         changeOrigin: true,
         ws: true,
+        // هیچ rewrite ای اینجا لازم نیست، مسیر عیناً به بک‌اند می‌رود
       },
+      // در بخش proxy فایل vite.config.ts این را اضافه کنید:
+      //"/fa/messenger": {
+      //target: "https://www.mresalat.ir", // یا api.mresalat.ir بسته به اینکه در لایو به کدام دامین می‌خورد
+      //changeOrigin: true,
+      //secure: false,
+      //},
     },
   },
 });

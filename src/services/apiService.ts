@@ -10,8 +10,12 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  // گرفتن توکن از storage یا استفاده از توکن هاردکد شده (سینتکس اصلاح شد)
-  const token = authStorage.getToken() || "GAPGPTMASKTOKENp08bvq1jf4X0X";
+  // خواندن توکن از استورج در صورت وجود، یا فال‌بک به توکن تست
+  const storageToken = authStorage.getToken();
+  const token =
+    storageToken ||
+    "GAPGPTMASKTOKENuq7y3hbaa08X1X" ||
+    "GAPGPTMASKTOKENp08bvq1jf4X0X";
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -45,9 +49,9 @@ async function apiFetch<T>(
 // ─── Raw API types (mirrors backend shape) ───────────────────────────────────
 
 export interface ConversationRaw {
-  id?: string; // تبدیل به اختیاری
-  conversationId?: string; // اضافه شدن فیلد اختصاصی سرور شما
-  uuid?: string; // برای پوشش سناریوهای دیگر
+  id?: string;
+  conversationId?: string;
+  uuid?: string;
   title: string;
   targetType: "PERSONAL" | "GROUP" | "CHANNEL" | "SUPPORT" | "ALL";
   avatar?: string;
@@ -65,7 +69,6 @@ export interface ConversationRaw {
   role?: "ADMIN" | "OWNER" | "MEMBER";
 }
 
-// Inner page object nested under `conversations`
 export interface ConversationPage {
   content: ConversationRaw[];
   number: number;
@@ -76,7 +79,6 @@ export interface ConversationPage {
   size: number;
 }
 
-// Actual root response shape from the backend
 export interface ConversationsResponse {
   conversations: ConversationPage;
   specificMessage1: string | null;
@@ -91,7 +93,6 @@ export interface ConversationsResponse {
 
 export function mapConversation(raw: ConversationRaw): ConversationItem {
   return {
-    // 💡 رفع مشکل اصلی: چک کردن تمام کلیدهای احتمالی برای آیدی
     id: raw.conversationId ?? raw.id ?? raw.uuid ?? "",
     title: raw.title,
     type:
@@ -150,39 +151,26 @@ function parseRSC<T>(text: string): T {
 
 // ─── Messages API ─────────────────────────────────────────────────────────────
 
+// ─── Messages API ─────────────────────────────────────────────────────────────
+
 export const messagesApi = {
+  /**
+   * دریافت مستقیم پیام‌های یک مکالمه به صورت REST API خالص
+   */
   async getConversationDetail(
     conversationId: string,
     pageNo = 0,
-    pageSize = 100,
+    pageSize = 50,
   ): Promise<ConversationDetail> {
-    const path = `/conversations/${conversationId}`;
-    // سینتکس اصلاح شد
-    const token = authStorage.getToken() || "GAPGPTMASKTOKENp08bvq1jf4X1X";
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify([
-        "Get",
-        { PageNo: pageNo, PageSize: pageSize, type: "" },
-        {},
-        path,
-        true,
-      ]),
+    const query = new URLSearchParams({
+      PageNo: pageNo.toString(),
+      PageSize: pageSize.toString(),
     });
 
-    if (!res.ok) {
-      throw new Error(`[messagesApi] ${res.status} ${res.statusText}`);
-    }
-
-    const text = await res.text();
-    return parseRSC<ConversationDetail>(text);
+    // درخواست مستقیم GET به بک‌اند
+    return apiFetch<ConversationDetail>(
+      `/messages/${conversationId}?${query.toString()}`,
+    );
   },
 
   async getNextPage(

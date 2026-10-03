@@ -21,6 +21,84 @@ import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
 import { ForwardModal } from "./ForwardModal";
 import { UserProfileModal } from "./UserProfileModal";
 import type { MessageItem } from "../types/chat";
+import type { Message } from "../types/messenger";
+import { useMessages } from "../hooks/useMessages";
+
+// ==========================
+// تبدیل پیام API به فرمت UI
+// ==========================
+const formatPersianTime = (ts: any): string => {
+  if (!ts) return "";
+  if (typeof ts === "string") return ts;
+  const h = String(ts.hour ?? "00").padStart(2, "0");
+  const m = String(ts.minute ?? "00").padStart(2, "0");
+  return `${h}:${m}`;
+};
+
+const formatPersianDate = (ts: any): string => {
+  if (!ts) return "";
+  if (typeof ts === "string") return ts;
+  return `${ts.year ?? ""}/${String(ts.month ?? "").padStart(2, "0")}/${String(
+    ts.day ?? "",
+  ).padStart(2, "0")} ${formatPersianTime(ts)}`;
+};
+
+const stateToStatus = (state?: string): MessageItem["status"] => {
+  switch (state) {
+    case "SEEN":
+      return "read";
+    case "DELIVERED":
+      return "delivered";
+    case "SENT":
+      return "sent";
+    case "PENDING":
+      return "sending";
+    default:
+      return undefined;
+  }
+};
+
+const mapApiMessage = (
+  msg: Message,
+  currentUserId: string | number | undefined,
+  conversationId: string | number | undefined,
+  allApiMessages: Message[],
+): MessageItem => {
+  const isOutgoing = currentUserId
+    ? String(msg.senderId) === String(currentUserId)
+    : false;
+
+  const replied = msg.replyToMessageId
+    ? allApiMessages.find((m) => String(m.id) === String(msg.replyToMessageId))
+    : undefined;
+
+  return {
+    id: msg.id,
+    conversationId: msg.conversationId ?? conversationId,
+    senderId: msg.senderId,
+    senderName: msg.senderNickname,
+    text: msg.text ?? "",
+    createdAt: formatPersianTime(msg.timestamp),
+    timestamp: formatPersianDate(msg.timestamp),
+    isOutgoing,
+    isMe: isOutgoing,
+    isEdited: Boolean(msg.isEdited),
+    status: stateToStatus(msg.state),
+    replyToId: msg.replyToMessageId ?? null,
+    replyRefMessageId: msg.replyToMessageId ?? null,
+    replyToMessage: replied
+      ? {
+          id: replied.id,
+          text: replied.text ?? "",
+          senderName: replied.senderNickname,
+          isOutgoing: currentUserId
+            ? String(replied.senderId) === String(currentUserId)
+            : false,
+        }
+      : null,
+    forwardFrom: null,
+  };
+};
 
 // ==========================
 // کامپوننت داخلی ایموجی‌پیکر
@@ -405,11 +483,50 @@ export const ChatArea: React.FC = () => {
     (c: any) => String(c.id) === String(activeConversationId),
   );
 
-  const currentMessages: MessageItem[] = activeConversationId
+  // اتصال به API از طریق useMessages
+  const apiConversationId: string | null =
+    (activeConversation as any)?.conversationId ??
+    (activeConversationId != null ? String(activeConversationId) : null);
+
+  const {
+    messages: apiMessages,
+    loading: messagesLoading,
+    loadingMore: loadingMoreMessages,
+    error: messagesError,
+    hasMore,
+    loadOlderMessages,
+    refresh: refreshMessages,
+  } = useMessages(apiConversationId);
+
+  const currentUserId: string | undefined =
+    (activeConversation as any)?.targetId ?? store.currentUserId ?? undefined;
+
+  const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
+    mapApiMessage(
+      m,
+      currentUserId,
+      apiConversationId ?? undefined,
+      apiMessages,
+    ),
+  );
+
+  // پیام‌های خوش‌بینانه محلی (اگر وجود داشته باشند) به پیام‌های API اضافه می‌شوند
+  const localMessages: MessageItem[] = activeConversationId
     ? messages[activeConversationId] ||
       messages[String(activeConversationId)] ||
       []
     : [];
+
+  const optimisticOnly = localMessages.filter(
+    (m) =>
+      (m.status === "sending" || m.isMe) &&
+      !mappedApiMessages.some((api) => String(api.id) === String(m.id)),
+  );
+
+  const currentMessages: MessageItem[] = [
+    ...mappedApiMessages,
+    ...optimisticOnly,
+  ];
 
   const displayedMessages =
     isSearching && searchQuery.trim()
@@ -651,10 +768,35 @@ export const ChatArea: React.FC = () => {
       {/* ناحیه نمایش پیام‌ها */}
       <div
         ref={messagesContainerRef}
-        onScroll={handleScroll}
+        //onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 space-y-4"
+        onScroll={(e) => {
+          handleScroll();
+          const el = e.currentTarget;
+          if (el.scrollTop <= 10 && hasMore && !loadingMoreMessages) {
+            loadOlderMessages();
+          }
+        }}
       >
-        {displayedMessages.length === 0 ? (
+        {messagesError ? (
+          <div className="h-full flex flex-col items-center justify-center text-red-500 gap-3 px-4 text-center">
+            <MessageSquare className="w-10 h-10 opacity-40" />
+            <span className="text-sm font-medium">
+              خطا در دریافت پیام‌ها: {messagesError}
+            </span>
+            <button
+              onClick={refreshMessages}
+              className="px-4 py-1.5 text-sm bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition"
+            >
+              تلاش مجدد
+            </button>
+          </div>
+        ) : messagesLoading ? (
+          <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm">در حال دریافت پیام‌ها...</span>
+          </div>
+        ) : displayedMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
             <MessageSquare className="w-10 h-10 opacity-30" />
             <span className="text-sm">
@@ -679,6 +821,11 @@ export const ChatArea: React.FC = () => {
               />
             </div>
           ))
+        )}
+        {loadingMoreMessages && (
+          <div className="flex justify-center py-2">
+            <div className="w-6 h-6 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
