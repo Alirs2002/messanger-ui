@@ -13,6 +13,7 @@ import {
   Heart,
   ThumbsUp,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import MessageBubble from "./MessageBubble";
@@ -21,6 +22,7 @@ import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
 import { ForwardModal } from "./ForwardModal";
 import { UserProfileModal } from "./UserProfileModal";
 import type { MessageItem } from "../types/chat";
+import { useMessages } from "../hooks/useMessages";
 
 // ==========================
 // کامپوننت داخلی ایموجی‌پیکر
@@ -37,16 +39,106 @@ const EMOJI_CATEGORIES = [
     icon: Smile,
     name: "صورتک‌ها",
     emojis: [
-      "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "🥲", "🥹",
-      "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗",
-      "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗", "🫢", "🫣", "🤫",
-      "🤔", "🫡", "🤐", "🤨", "😐", "😑", "😶", "🫥", "😏", "😒",
-      "🙄", "😬", "😮‍💨", "🤥", "😌", "😴", "😷", "🤒", "🤕", "🤢",
-      "🤮", "🤧", "🥵", "🥶", "🥴", "😵", "😵‍💫", "🤯", "🤠", "🥳",
-      "🥸", "😎", "🤓", "🧐", "😕", "🫤", "😟", "🙁", "😮", "😯",
-      "😲", "😳", "🥺", "🥹", "😦", "😧", "😨", "😰", "😥", "😢",
-      "😭", "😱", "😖", "😣", "😞", "😓", "😩", "😫", "🥱", "😤",
-      "😡", "😠", "🤬", "😈", "👿", "💀", "☠️", "💩", "🤡", "👻",
+      "😀",
+      "😃",
+      "😄",
+      "😁",
+      "😆",
+      "😅",
+      "😂",
+      "🤣",
+      "🥲",
+      "🥹",
+      "😊",
+      "😇",
+      "🙂",
+      "🙃",
+      "😉",
+      "😌",
+      "😍",
+      "🥰",
+      "😘",
+      "😗",
+      "😋",
+      "😛",
+      "😜",
+      "🤪",
+      "😝",
+      "🤑",
+      "🤗",
+      "🫢",
+      "🫣",
+      "🤫",
+      "🤔",
+      "🫡",
+      "🤐",
+      "🤨",
+      "😐",
+      "😑",
+      "😶",
+      "🫥",
+      "😏",
+      "😒",
+      "🙄",
+      "😬",
+      "😮‍💨",
+      "🤥",
+      "😌",
+      "😴",
+      "😷",
+      "🤒",
+      "🤕",
+      "🤢",
+      "🤮",
+      "🤧",
+      "🥵",
+      "🥶",
+      "🥴",
+      "😵",
+      "😵‍💫",
+      "🤯",
+      "🤠",
+      "🥳",
+      "🥸",
+      "😎",
+      "🤓",
+      "🧐",
+      "😕",
+      "🫤",
+      "😟",
+      "🙁",
+      "😮",
+      "😯",
+      "😲",
+      "😳",
+      "🥺",
+      "🥹",
+      "😦",
+      "😧",
+      "😨",
+      "😰",
+      "😥",
+      "😢",
+      "😭",
+      "😱",
+      "😖",
+      "😣",
+      "😞",
+      "😓",
+      "😩",
+      "😫",
+      "🥱",
+      "😤",
+      "😡",
+      "😠",
+      "🤬",
+      "😈",
+      "👿",
+      "💀",
+      "☠️",
+      "💩",
+      "🤡",
+      "👻",
     ],
   },
   {
@@ -54,11 +146,56 @@ const EMOJI_CATEGORIES = [
     icon: ThumbsUp,
     name: "دست‌ها و بدن",
     emojis: [
-      "👋", "🤚", "🖐️", "✋", "🖖", "🫱", "🫲", "🫸", "🫷", "🫳",
-      "🫴", "👌", "🤌", "🤏", "✌️", "🤞", "🫰", "🤟", "🤘", "🤙",
-      "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊",
-      "🤛", "🤜", "👏", "🙌", "🫶", "👐", "🤲", "🤝", "🙏", "✍️",
-      "💪", "🦾", "🦿", "🦵", "🦶", "👂", "🦻", "👃", "🧠", "🫀",
+      "👋",
+      "🤚",
+      "🖐️",
+      "✋",
+      "🖖",
+      "🫱",
+      "🫲",
+      "🫸",
+      "🫷",
+      "🫳",
+      "🫴",
+      "👌",
+      "🤌",
+      "🤏",
+      "✌️",
+      "🤞",
+      "🫰",
+      "🤟",
+      "🤘",
+      "🤙",
+      "👈",
+      "👉",
+      "👆",
+      "🖕",
+      "👇",
+      "☝️",
+      "👍",
+      "👎",
+      "✊",
+      "👊",
+      "🤛",
+      "🤜",
+      "👏",
+      "🙌",
+      "🫶",
+      "👐",
+      "🤲",
+      "🤝",
+      "🙏",
+      "✍️",
+      "💪",
+      "🦾",
+      "🦿",
+      "🦵",
+      "🦶",
+      "👂",
+      "🦻",
+      "👃",
+      "🧠",
+      "🫀",
     ],
   },
   {
@@ -66,9 +203,36 @@ const EMOJI_CATEGORIES = [
     icon: Heart,
     name: "قلب‌ها و عواطف",
     emojis: [
-      "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔",
-      "❤️‍🔥", "❤️‍🩹", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝",
-      "💟", "💌", "💋", "💯", "💢", "💥", "💫", "💦", "💨", "🕳️",
+      "❤️",
+      "🧡",
+      "💛",
+      "💚",
+      "💙",
+      "💜",
+      "🖤",
+      "🤍",
+      "🤎",
+      "💔",
+      "❤️‍🔥",
+      "❤️‍🩹",
+      "❣️",
+      "💕",
+      "💞",
+      "💓",
+      "💗",
+      "💖",
+      "💘",
+      "💝",
+      "💟",
+      "💌",
+      "💋",
+      "💯",
+      "💢",
+      "💥",
+      "💫",
+      "💦",
+      "💨",
+      "🕳️",
     ],
   },
   {
@@ -76,10 +240,46 @@ const EMOJI_CATEGORIES = [
     icon: Sparkles,
     name: "نمادها و علامت‌ها",
     emojis: [
-      "✨", "⭐", "🌟", "⚡", "🔥", "🎉", "🎊", "🎯", "🏆", "🥇",
-      "🥈", "🥉", "🎁", "🎈", "💡", "🔔", "📢", "💬", "💭", "☕",
-      "🍕", "🍔", "🍟", "🍰", "🚀", "✈️", "🚗", "🛵", "💻", "📱",
-      "✅", "❌", "❓", "❗", "⚠️", "⛔", "🟢", "🔴", "🔵", "🟡",
+      "✨",
+      "⭐",
+      "🌟",
+      "⚡",
+      "🔥",
+      "🎉",
+      "🎊",
+      "🎯",
+      "🏆",
+      "🥇",
+      "🥈",
+      "🥉",
+      "🎁",
+      "🎈",
+      "💡",
+      "🔔",
+      "📢",
+      "💬",
+      "💭",
+      "☕",
+      "🍕",
+      "🍔",
+      "🍟",
+      "🍰",
+      "🚀",
+      "✈️",
+      "🚗",
+      "🛵",
+      "💻",
+      "📱",
+      "✅",
+      "❌",
+      "❓",
+      "❗",
+      "⚠️",
+      "⛔",
+      "🟢",
+      "🔴",
+      "🔵",
+      "🟡",
     ],
   },
 ];
@@ -174,13 +374,25 @@ export const ChatArea: React.FC = () => {
   const store = useChatStore() as any;
   const conversations = store.conversations || [];
   const activeConversationId = store.activeConversationId;
-  const messages = store.messages || {};
+  const storeMessagesMap = store.messages || {};
+
+  const {
+    messages: hookMessages,
+    loading,
+    error,
+    hasMore,
+    loadOlderMessages,
+  } = useMessages(activeConversationId ? String(activeConversationId) : null);
+
   const replyingTo = store.replyingTo;
   const setReplyingTo = store.setReplyingTo;
 
   const [messageText, setMessageText] = useState("");
-  const [editingMessage, setEditingMessage] = useState<MessageItem | null>(null);
-  const [forwardingMessage, setForwardingMessage] = useState<MessageItem | null>(null);
+  const [editingMessage, setEditingMessage] = useState<MessageItem | null>(
+    null,
+  );
+  const [forwardingMessage, setForwardingMessage] =
+    useState<MessageItem | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -201,17 +413,25 @@ export const ChatArea: React.FC = () => {
   } | null>(null);
 
   const activeConversation = conversations.find(
-    (c: any) => String(c.id) === String(activeConversationId)
+    (c: any) => String(c.id) === String(activeConversationId),
   );
 
-  const currentMessages: MessageItem[] = activeConversationId
-    ? messages[activeConversationId] || messages[String(activeConversationId)] || []
+  // اتصال پیام‌ها: ابتدا داده سرور (useMessages) و در نبود آن، داده محلی استور
+  const fallbackStoreMessages: MessageItem[] = activeConversationId
+    ? storeMessagesMap[activeConversationId] ||
+      storeMessagesMap[String(activeConversationId)] ||
+      []
     : [];
+
+  const currentMessages: MessageItem[] =
+    hookMessages && hookMessages.length > 0
+      ? (hookMessages as unknown as MessageItem[])
+      : fallbackStoreMessages;
 
   const displayedMessages =
     isSearching && searchQuery.trim()
       ? currentMessages.filter((msg) =>
-          msg.text?.toLowerCase().includes(searchQuery.toLowerCase())
+          msg.text?.toLowerCase().includes(searchQuery.toLowerCase()),
         )
       : currentMessages;
 
@@ -262,14 +482,23 @@ export const ChatArea: React.FC = () => {
 
   const handleScroll = () => {
     if (!messagesContainerRef.current || !activeConversation) return;
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } =
+      messagesContainerRef.current;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+    // بارگذاری پیام‌های قدیمی‌تر وقتی کاربر به بالای چت می‌رسد
+    if (scrollTop < 60 && hasMore && !loading) {
+      loadOlderMessages?.();
+    }
 
     if (distanceFromBottom > 100) {
       setShowScrollBottom(true);
     } else {
       setShowScrollBottom(false);
-      if (((activeConversation as any).unreadCount ?? 0) > 0 && distanceFromBottom <= 40) {
+      if (
+        ((activeConversation as any).unreadCount ?? 0) > 0 &&
+        distanceFromBottom <= 40
+      ) {
         store.markAsRead?.(activeConversation.id);
       }
     }
@@ -277,7 +506,10 @@ export const ChatArea: React.FC = () => {
 
   const handleScrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    if (activeConversation && ((activeConversation as any).unreadCount ?? 0) > 0) {
+    if (
+      activeConversation &&
+      ((activeConversation as any).unreadCount ?? 0) > 0
+    ) {
       store.markAsRead?.(activeConversation.id);
     }
     setShowScrollBottom(false);
@@ -287,9 +519,19 @@ export const ChatArea: React.FC = () => {
     const targetElement = document.getElementById(`msg-${messageId}`);
     if (targetElement) {
       targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      targetElement.classList.add("bg-amber-100/60", "dark:bg-amber-900/30", "p-1", "rounded-2xl");
+      targetElement.classList.add(
+        "bg-amber-100/60",
+        "dark:bg-amber-900/30",
+        "p-1",
+        "rounded-2xl",
+      );
       setTimeout(() => {
-        targetElement.classList.remove("bg-amber-100/60", "dark:bg-amber-900/30", "p-1", "rounded-2xl");
+        targetElement.classList.remove(
+          "bg-amber-100/60",
+          "dark:bg-amber-900/30",
+          "p-1",
+          "rounded-2xl",
+        );
       }, 1200);
     }
   };
@@ -344,7 +586,11 @@ export const ChatArea: React.FC = () => {
     if (isChannel && !canPostInChannel) return;
 
     if (editingMessage && store.editMessage) {
-      store.editMessage(activeConversation.id, editingMessage.id, messageText.trim());
+      store.editMessage(
+        activeConversation.id,
+        editingMessage.id,
+        messageText.trim(),
+      );
       setEditingMessage(null);
     } else if (store.sendMessage) {
       store.sendMessage(activeConversation.id, messageText.trim());
@@ -407,7 +653,9 @@ export const ChatArea: React.FC = () => {
             chatType={currentChatType}
             isMuted={isMuted}
             isBlocked={isBlocked}
-            onMuteToggle={() => store.toggleMuteConversation?.(activeConversation.id)}
+            onMuteToggle={() =>
+              store.toggleMuteConversation?.(activeConversation.id)
+            }
             onBlockToggle={() => setIsBlocked(!isBlocked)}
             onSearch={() => setIsSearching(true)}
             onReport={() => alert("گزارش تخلف ثبت گردید.")}
@@ -428,11 +676,21 @@ export const ChatArea: React.FC = () => {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 space-y-4"
       >
-        {displayedMessages.length === 0 ? (
+        {loading && (
+          <div className="flex justify-center py-2">
+            <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
+          </div>
+        )}
+
+        {displayedMessages.length === 0 && !loading ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
             <MessageSquare className="w-10 h-10 opacity-30" />
             <span className="text-sm">
-              {isSearching ? "پیامی یافت نشد." : "پیامی در این گفتگو وجود ندارد."}
+              {error
+                ? "خطا در دریافت پیام‌ها از سرور"
+                : isSearching
+                  ? "پیامی یافت نشد."
+                  : "پیامی در این گفتگو وجود ندارد."}
             </span>
           </div>
         ) : (
@@ -522,7 +780,10 @@ export const ChatArea: React.FC = () => {
           >
             <Smile className="w-6 h-6" />
           </button>
-          <button type="button" className="p-2 text-gray-400 hover:text-gray-600 rounded-full transition">
+          <button
+            type="button"
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-full transition"
+          >
             <Paperclip className="w-6 h-6" />
           </button>
           <input

@@ -1,5 +1,6 @@
 import { authStorage } from "./auth";
 import type { ConversationItem } from "../types/chat";
+import type { ConversationDetail } from "../types/messenger";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/messenger/api";
 
@@ -123,6 +124,7 @@ export const conversationsApi = {
     );
   },
 };
+
 // ─── RSC Parser ──────────────────────────────────────────────────────────────
 
 function parseRSC<T>(text: string): T {
@@ -140,47 +142,6 @@ function parseRSC<T>(text: string): T {
     }
   }
   throw new Error('[parseRSC] No data line found (expected "1:...")');
-}
-
-// ─── Message types ────────────────────────────────────────────────────────────
-
-export interface MessageRaw {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  senderName?: string;
-  senderAvatar?: string;
-  content: string;
-  type: "TEXT" | "IMAGE" | "FILE" | "VOICE" | "VIDEO" | "STICKER";
-  createdAt: string;
-  editedAt?: string;
-  replyTo?: string;
-  isRead?: boolean;
-  isDelivered?: boolean;
-  isMine?: boolean;
-}
-
-export interface MessagePage {
-  content: MessageRaw[];
-  number: number;
-  totalPages: number;
-  totalElements: number;
-  last: boolean;
-  first: boolean;
-  size: number;
-}
-
-export interface ConversationDetail {
-  conversation: {
-    id: string;
-    title: string;
-    avatar?: string;
-    targetType: string;
-  };
-  messages: MessagePage;
-  opponentStatus: "ONLINE" | "OFFLINE";
-  hasPrevious: boolean;
-  hasNext: boolean;
 }
 
 // ─── Messages API ─────────────────────────────────────────────────────────────
