@@ -13,7 +13,6 @@ import {
   Heart,
   ThumbsUp,
   Sparkles,
-  Loader2,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import MessageBubble from "./MessageBubble";
@@ -22,7 +21,6 @@ import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
 import { ForwardModal } from "./ForwardModal";
 import { UserProfileModal } from "./UserProfileModal";
 import type { MessageItem } from "../types/chat";
-import { useMessages } from "../hooks/useMessages";
 
 // ==========================
 // کامپوننت داخلی ایموجی‌پیکر
@@ -374,16 +372,7 @@ export const ChatArea: React.FC = () => {
   const store = useChatStore() as any;
   const conversations = store.conversations || [];
   const activeConversationId = store.activeConversationId;
-  const storeMessagesMap = store.messages || {};
-
-  const {
-    messages: hookMessages,
-    loading,
-    error,
-    hasMore,
-    loadOlderMessages,
-  } = useMessages(activeConversationId ? String(activeConversationId) : null);
-
+  const messages = store.messages || {};
   const replyingTo = store.replyingTo;
   const setReplyingTo = store.setReplyingTo;
 
@@ -416,17 +405,11 @@ export const ChatArea: React.FC = () => {
     (c: any) => String(c.id) === String(activeConversationId),
   );
 
-  // اتصال پیام‌ها: ابتدا داده سرور (useMessages) و در نبود آن، داده محلی استور
-  const fallbackStoreMessages: MessageItem[] = activeConversationId
-    ? storeMessagesMap[activeConversationId] ||
-      storeMessagesMap[String(activeConversationId)] ||
+  const currentMessages: MessageItem[] = activeConversationId
+    ? messages[activeConversationId] ||
+      messages[String(activeConversationId)] ||
       []
     : [];
-
-  const currentMessages: MessageItem[] =
-    hookMessages && hookMessages.length > 0
-      ? (hookMessages as unknown as MessageItem[])
-      : fallbackStoreMessages;
 
   const displayedMessages =
     isSearching && searchQuery.trim()
@@ -485,11 +468,6 @@ export const ChatArea: React.FC = () => {
     const { scrollTop, scrollHeight, clientHeight } =
       messagesContainerRef.current;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-
-    // بارگذاری پیام‌های قدیمی‌تر وقتی کاربر به بالای چت می‌رسد
-    if (scrollTop < 60 && hasMore && !loading) {
-      loadOlderMessages?.();
-    }
 
     if (distanceFromBottom > 100) {
       setShowScrollBottom(true);
@@ -676,21 +654,13 @@ export const ChatArea: React.FC = () => {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 space-y-4"
       >
-        {loading && (
-          <div className="flex justify-center py-2">
-            <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
-          </div>
-        )}
-
-        {displayedMessages.length === 0 && !loading ? (
+        {displayedMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
             <MessageSquare className="w-10 h-10 opacity-30" />
             <span className="text-sm">
-              {error
-                ? "خطا در دریافت پیام‌ها از سرور"
-                : isSearching
-                  ? "پیامی یافت نشد."
-                  : "پیامی در این گفتگو وجود ندارد."}
+              {isSearching
+                ? "پیامی یافت نشد."
+                : "پیامی در این گفتگو وجود ندارد."}
             </span>
           </div>
         ) : (
