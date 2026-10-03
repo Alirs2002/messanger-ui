@@ -1,6 +1,10 @@
 import { authStorage } from "./auth";
-import type { ConversationItem } from "../types/chat";
-import type { ConversationDetail } from "../types/messenger";
+import type { ConversationItem, MessageItem } from "../types/chat";
+import type {
+  ConversationDetail,
+  Message as BackendMessage,
+  PersianDate,
+} from "../types/messenger";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/messenger/api";
 
@@ -10,7 +14,6 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  // خواندن توکن از استورج در صورت وجود، یا فال‌بک به توکن تست
   const storageToken = authStorage.getToken();
   const token =
     storageToken ||
@@ -89,7 +92,7 @@ export interface ConversationsResponse {
   allUnreadCounts: Record<string, number>;
 }
 
-// ─── Mapper ──────────────────────────────────────────────────────────────────
+// ─── Conversation Mapper ─────────────────────────────────────────────────────
 
 export function mapConversation(raw: ConversationRaw): ConversationItem {
   return {
@@ -113,6 +116,74 @@ export function mapConversation(raw: ConversationRaw): ConversationItem {
   };
 }
 
+// ─── Message Mappers ─────────────────────────────────────────────────────────
+
+export function formatMessageTime(
+  dateInput?: PersianDate | string | number | Date | null,
+): string {
+  if (!dateInput) return "";
+
+  if (
+    typeof dateInput === "object" &&
+    "hour" in dateInput &&
+    "minute" in dateInput
+  ) {
+    const pad = (v: string | number) => String(v).padStart(2, "0");
+    const enTime = `${pad(dateInput.hour)}:${pad(dateInput.minute)}`;
+    return enTime.replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);
+  }
+
+  const date = new Date(dateInput as string | number | Date);
+  if (isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString("fa-IR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function mapMessageStatus(
+  state?: string,
+): "sending" | "sent" | "delivered" | "read" | undefined {
+  switch (state?.toUpperCase()) {
+    case "SEEN":
+      return "read";
+    case "DELIVERED":
+      return "delivered";
+    case "SENT":
+      return "sent";
+    case "PENDING":
+      return "sending";
+    default:
+      return undefined;
+  }
+}
+
+export function mapMessageToItem(
+  raw: BackendMessage | any,
+  currentUserId?: string | number | null,
+): MessageItem {
+  const senderId = raw.senderId ?? raw.creatorId ?? raw.sender?.id ?? raw.from;
+  const isOutgoing =
+    currentUserId != null
+      ? String(senderId) === String(currentUserId)
+      : Boolean(raw.isOutgoing);
+
+  return {
+    id: String(raw.id ?? raw.messageId ?? raw.uuid),
+    senderId: senderId ? String(senderId) : undefined,
+    senderName: raw.senderNickname ?? raw.senderName ?? "",
+    text: raw.text ?? raw.content ?? raw.body ?? "",
+    createdAt: formatMessageTime(raw.timestamp ?? raw.createdAt),
+    isOutgoing,
+    isMe: isOutgoing,
+    isEdited: Boolean(raw.isEdited),
+    status: mapMessageStatus(raw.state ?? raw.status),
+    replyToId: raw.replyToMessageId ? String(raw.replyToMessageId) : undefined,
+  };
+}
+
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 export const conversationsApi = {
@@ -130,33 +201,7 @@ export const conversationsApi = {
   },
 };
 
-// ─── RSC Parser ──────────────────────────────────────────────────────────────
-
-function parseRSC<T>(text: string): T {
-  const lines = text.trim().split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("1:")) {
-      try {
-        return JSON.parse(trimmed.slice(2)) as T;
-      } catch {
-        throw new Error(
-          `[parseRSC] JSON parse failed: ${trimmed.slice(0, 100)}`,
-        );
-      }
-    }
-  }
-  throw new Error('[parseRSC] No data line found (expected "1:...")');
-}
-
-// ─── Messages API ─────────────────────────────────────────────────────────────
-
-// ─── Messages API ─────────────────────────────────────────────────────────────
-
 export const messagesApi = {
-  /**
-   * دریافت مستقیم پیام‌های یک مکالمه به صورت REST API خالص
-   */
   async getConversationDetail(
     conversationId: string,
     pageNo = 0,
@@ -167,7 +212,6 @@ export const messagesApi = {
       PageSize: pageSize.toString(),
     });
 
-    // درخواست مستقیم GET به بک‌اند
     return apiFetch<ConversationDetail>(
       `/messages/${conversationId}?${query.toString()}`,
     );
