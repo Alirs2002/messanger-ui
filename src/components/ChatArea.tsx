@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
+import { authStorage } from "../services/auth";
 import MessageBubble from "./MessageBubble";
 import { MessageContextMenu } from "./MessageContextMenu";
 import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
@@ -27,21 +28,31 @@ import { useMessages } from "../hooks/useMessages";
 // ==========================
 // تبدیل پیام API به فرمت UI
 // ==========================
-const formatPersianTime = (ts: any): string => {
-  if (!ts) return "";
-  if (typeof ts === "string") return ts;
-  const h = String(ts.hour ?? "00").padStart(2, "0");
-  const m = String(ts.minute ?? "00").padStart(2, "0");
-  return `${h}:${m}`;
-};
+function formatPersianTime(ts: any): string {
+  if (ts && typeof ts === "object" && "hour" in ts && "minute" in ts) {
+    const h = String(ts.hour).padStart(2, "0");
+    const m = String(ts.minute).padStart(2, "0");
+    return `${h}:${m}`.replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[+d]);
+  }
+  // fallback for string/number
+  const d = new Date(ts);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+  }
+  return "";
+}
 
-const formatPersianDate = (ts: any): string => {
-  if (!ts) return "";
-  if (typeof ts === "string") return ts;
-  return `${ts.year ?? ""}/${String(ts.month ?? "").padStart(2, "0")}/${String(
-    ts.day ?? "",
-  ).padStart(2, "0")} ${formatPersianTime(ts)}`;
-};
+function formatPersianDate(ts: any): string {
+  if (ts && typeof ts === "object" && "year" in ts) {
+    const { year, month, day } = ts;
+    return `${year}/${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}`;
+  }
+  const d = new Date(ts);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString("fa-IR");
+  }
+  return "";
+}
 
 const stateToStatus = (state?: string): MessageItem["status"] => {
   switch (state) {
@@ -498,9 +509,15 @@ export const ChatArea: React.FC = () => {
     refresh: refreshMessages,
   } = useMessages(apiConversationId);
 
-  const currentUserId = store.currentUserId ?? undefined;
+  //const currentUserId = store.currentUserId ?? undefined;
+//const currentUserId = store.currentUserId ?? activeConversation?.targetId;
+// line ~504
+//const currentUserId = authStorage.getUserId() ?? undefined;
+  //const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
+//const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
+const currentUserId = authStorage.getUserId() ?? undefined;
 
-  const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
+const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
     mapApiMessage(
       m,
       currentUserId,
