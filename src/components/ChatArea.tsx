@@ -106,7 +106,7 @@ const mapApiMessage = (
     isOutgoing,
     isMe: isOutgoing,
     isEdited: Boolean(msg.isEdited),
-    status: stateToStatus(msg.state),
+    status: stateToStatus((msg as any).messageState ?? msg.state),
     replyToId: msg.replyToMessageId ?? null,
     replyRefMessageId: msg.replyToMessageId ?? null,
     replyToMessage: replied
