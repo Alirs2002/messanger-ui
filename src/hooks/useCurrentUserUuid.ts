@@ -1,44 +1,59 @@
 import { useState, useEffect } from "react";
 import { authStorage } from "../services/auth";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/messenger/api";
 
-/**
- * Returns the current user's UUID (matches authorUserId in the messages API).
- * Reads from localStorage cache first; fetches /users/me only when missing.
- */
-export function useCurrentUserUuid(): string | null {
-  const [uuid, setUuid] = useState<string | null>(authStorage.getUserUuid());
+interface MeResponse {
+  userId?: string;
+  id?: string;
+  [key: string]: unknown;
+}
+
+export function useCurrentUserUuid(): string | undefined {
+  const [uuid, setUuid] = useState<string | undefined>(
+    authStorage.getUserUuid() ?? undefined,
+  );
 
   useEffect(() => {
-    if (uuid) return; // already cached
+    // Return early if already cached from a previous session
+    const cached = authStorage.getUserUuid();
+    if (cached) {
+      setUuid(cached);
+      return;
+    }
 
     const token = authStorage.getToken();
     if (!token) return;
 
+    let cancelled = false;
+
     fetch(`${BASE_URL}/users/me`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
     })
       .then((res) => {
-        if (!res.ok) throw new Error(`/users/me responded ${res.status}`);
-        return res.json();
+        if (!res.ok) throw new Error(`[API] ${res.status} — /users/me`);
+        return res.json() as Promise<MeResponse>;
       })
-      .then((data: Record<string, unknown>) => {
-        // Adjust the field name if your API uses a different key (userId, uuid, etc.)
-        const userUuid =
-          (data.id as string) ??
-          (data.userId as string) ??
-          (data.uuid as string);
-
-        if (userUuid) {
-          authStorage.setUserUuid(userUuid);
-          setUuid(userUuid);
+      .then((data) => {
+        if (cancelled) return;
+        // Accommodate both common field name conventions
+        const id = data.userId ?? data.id;
+        if (typeof id === "string" && id.length > 0) {
+          authStorage.setUserUuid(id);
+          setUuid(id);
         }
       })
-      .catch(() => {
-        // silently fail — isOutgoing stays false until the next mount
+      .catch((err) => {
+        console.error("[useCurrentUserUuid] failed to fetch /users/me:", err);
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return uuid;
 }
