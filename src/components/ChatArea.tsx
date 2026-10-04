@@ -24,6 +24,8 @@ import { UserProfileModal } from "./UserProfileModal";
 import type { MessageItem } from "../types/chat";
 import type { Message } from "../types/messenger";
 import { useMessages } from "../hooks/useMessages";
+import { useCurrentUserUuid } from "../hooks/useCurrentUserUuid";
+
 
 // ==========================
 // تبدیل پیام API به فرمت UI
@@ -515,7 +517,13 @@ export const ChatArea: React.FC = () => {
 //const currentUserId = authStorage.getUserId() ?? undefined;
   //const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
 //const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
-const currentUserId = authStorage.getUserId() ?? undefined;
+//const currentUserId = authStorage.getUserId() ?? undefined;
+const currentUserId = useCurrentUserUuid() ?? undefined;
+console.log("raw apiMessages:", JSON.stringify(apiMessages.map(m => ({
+  id: m.id,
+  senderId: m.senderId,
+  text: m.text?.slice(0, 30)
+}))));
 
 const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
     mapApiMessage(
@@ -525,6 +533,7 @@ const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
       apiMessages,
     ),
   );
+  //console.log("DEBUG", { currentUserId, apiMessages: apiMessages.slice(0, 3) });
 
   // پیام‌های خوش‌بینانه محلی (اگر وجود داشته باشند) به پیام‌های API اضافه می‌شوند
   const localMessages: MessageItem[] = activeConversationId

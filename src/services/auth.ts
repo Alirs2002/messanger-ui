@@ -1,5 +1,6 @@
 const TOKEN_KEY = "access_token";
 const USER_ID_KEY = "current_user_id";
+const USER_UUID_KEY = "current_user_uuid";
 
 export const authStorage = {
   getToken: (): string | null => localStorage.getItem(TOKEN_KEY),
@@ -10,8 +11,13 @@ export const authStorage = {
   setUserId: (id: string): void => localStorage.setItem(USER_ID_KEY, id),
   removeUserId: (): void => localStorage.removeItem(USER_ID_KEY),
 
+  getUserUuid: (): string | null => localStorage.getItem(USER_UUID_KEY),
+  setUserUuid: (uuid: string): void => localStorage.setItem(USER_UUID_KEY, uuid),
+  removeUserUuid: (): void => localStorage.removeItem(USER_UUID_KEY),
+
   clear: (): void => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_ID_KEY);
+    localStorage.removeItem(USER_UUID_KEY);
   },
 };
