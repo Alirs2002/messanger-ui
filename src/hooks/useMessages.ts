@@ -1,3 +1,4 @@
+// src/hooks/useMessages.ts
 import { useState, useEffect, useCallback, useRef } from "react";
 import { messagesApi } from "../services/apiService";
 import type {
@@ -5,6 +6,19 @@ import type {
   Conversation,
   ConversationDetail,
 } from "../types/messenger";
+import type { PersianDate } from "../types/messenger";
+
+const toNum = (t: PersianDate | undefined): number => {
+  if (!t) return 0;
+  return (
+    +t.year * 1e10 +
+    +t.month * 1e8 +
+    +t.day * 1e6 +
+    +t.hour * 1e4 +
+    +t.minute * 1e2 +
+    +t.second
+  );
+};
 
 interface UseMessagesState {
   messages: Message[];
@@ -29,7 +43,6 @@ export function useMessages(conversationId: string | null) {
     page: 0,
   });
 
-  // نگه‌داری ref برای جلوگیری از race condition
   const activeConvId = useRef<string | null>(null);
 
   const applyDetail = useCallback(
@@ -40,8 +53,12 @@ export function useMessages(conversationId: string | null) {
           ? [...newMessages, ...prev.messages]
           : newMessages;
 
+        const sorted = [...merged].sort(
+          (a, b) => toNum(a.timestamp) - toNum(b.timestamp),
+        );
+
         return {
-          messages: merged,
+          messages: sorted,
           conversation: detail.conversation,
           opponentStatus: detail.opponentStatus,
           loading: false,
@@ -55,7 +72,6 @@ export function useMessages(conversationId: string | null) {
     [],
   );
 
-  // بارگذاری اولیه هر بار که conversationId تغییر کنه
   useEffect(() => {
     if (!conversationId) return;
 
@@ -65,7 +81,6 @@ export function useMessages(conversationId: string | null) {
     messagesApi
       .getConversationDetail(conversationId, 0)
       .then((detail) => {
-        // اگه در این بین conversation عوض شده، نادیده بگیر
         if (activeConvId.current !== conversationId) return;
         applyDetail(detail, 0, false);
       })
@@ -83,7 +98,6 @@ export function useMessages(conversationId: string | null) {
     };
   }, [conversationId, applyDetail]);
 
-  // بارگذاری صفحات قدیمی‌تر (scroll to top)
   const loadOlderMessages = useCallback(async () => {
     if (!conversationId || state.loadingMore || !state.hasMore) return;
 
@@ -92,7 +106,7 @@ export function useMessages(conversationId: string | null) {
     try {
       const nextPage = state.page + 1;
       const detail = await messagesApi.getNextPage(conversationId, nextPage);
-      applyDetail(detail, nextPage, true); // prepend = قبل از پیام‌های فعلی
+      applyDetail(detail, nextPage, true);
     } catch (err) {
       setState((prev) => ({
         ...prev,

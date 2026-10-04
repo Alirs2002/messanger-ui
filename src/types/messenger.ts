@@ -78,6 +78,8 @@ export interface Message {
   isDeleted: boolean;
   fileUrl?: string;
   thumbnailUrl?: string;
+  authorUserId?: string; // <--- اضافه شد
+  authorNickname?: string;
 }
 
 export interface MessagesPage {

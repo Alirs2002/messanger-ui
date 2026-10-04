@@ -26,7 +26,6 @@ import type { Message } from "../types/messenger";
 import { useMessages } from "../hooks/useMessages";
 import { useCurrentUserUuid } from "../hooks/useCurrentUserUuid";
 
-
 // ==========================
 // تبدیل پیام API به فرمت UI
 // ==========================
@@ -34,12 +33,15 @@ function formatPersianTime(ts: any): string {
   if (ts && typeof ts === "object" && "hour" in ts && "minute" in ts) {
     const h = String(ts.hour).padStart(2, "0");
     const m = String(ts.minute).padStart(2, "0");
-    return `${h}:${m}`.replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[+d]);
+    return `${h}:${m}`.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);
   }
   // fallback for string/number
   const d = new Date(ts);
   if (!isNaN(d.getTime())) {
-    return d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("fa-IR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
   return "";
 }
@@ -70,15 +72,18 @@ const stateToStatus = (state?: string): MessageItem["status"] => {
       return undefined;
   }
 };
-
 const mapApiMessage = (
   msg: Message,
   currentUserId: string | number | undefined,
   conversationId: string | number | undefined,
   allApiMessages: Message[],
 ): MessageItem => {
+  // اینجا آیدی واقعی رو می‌گیریم
+  const actualSenderId = msg.authorUserId || msg.senderId;
+  const actualSenderName = msg.authorNickname || msg.senderNickname;
+
   const isOutgoing = currentUserId
-    ? String(msg.senderId) === String(currentUserId)
+    ? String(actualSenderId) === String(currentUserId)
     : false;
 
   const replied = msg.replyToMessageId
@@ -88,8 +93,8 @@ const mapApiMessage = (
   return {
     id: msg.id,
     conversationId: msg.conversationId ?? conversationId,
-    senderId: msg.senderId,
-    senderName: msg.senderNickname,
+    senderId: actualSenderId, // <--- آپدیت شد
+    senderName: actualSenderName, // <--- آپدیت شد
     text: msg.text ?? "",
     createdAt: formatPersianTime(msg.timestamp),
     timestamp: formatPersianDate(msg.timestamp),
@@ -103,9 +108,10 @@ const mapApiMessage = (
       ? {
           id: replied.id,
           text: replied.text ?? "",
-          senderName: replied.senderNickname,
+          senderName: replied.authorNickname || replied.senderNickname,
           isOutgoing: currentUserId
-            ? String(replied.senderId) === String(currentUserId)
+            ? String(replied.authorUserId || replied.senderId) ===
+              String(currentUserId)
             : false,
         }
       : null,
@@ -512,22 +518,27 @@ export const ChatArea: React.FC = () => {
   } = useMessages(apiConversationId);
 
   //const currentUserId = store.currentUserId ?? undefined;
-//const currentUserId = store.currentUserId ?? activeConversation?.targetId;
-// line ~504
-//const currentUserId = authStorage.getUserId() ?? undefined;
+  //const currentUserId = store.currentUserId ?? activeConversation?.targetId;
+  // line ~504
+  //const currentUserId = authStorage.getUserId() ?? undefined;
   //const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
-//const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
-//const currentUserId = authStorage.getUserId() ?? undefined;
-//const currentUserId = useCurrentUserUuid() ?? undefined;
-const currentUserId = useCurrentUserUuid();
+  //const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
+  //const currentUserId = authStorage.getUserId() ?? undefined;
+  //const currentUserId = useCurrentUserUuid() ?? undefined;
+  //const currentUserId = useCurrentUserUuid();
+  const currentUserId = (activeConversation as any)?.userId ?? undefined;
+  console.log(
+    "raw apiMessages:",
+    JSON.stringify(
+      apiMessages.map((m) => ({
+        id: m.id,
+        senderId: m.senderId,
+        text: m.text?.slice(0, 30),
+      })),
+    ),
+  );
 
-console.log("raw apiMessages:", JSON.stringify(apiMessages.map(m => ({
-  id: m.id,
-  senderId: m.senderId,
-  text: m.text?.slice(0, 30)
-}))));
-
-const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
+  const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
     mapApiMessage(
       m,
       currentUserId,
@@ -555,13 +566,12 @@ const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
     ...optimisticOnly,
   ];
   // Sort by numeric message ID (assumes sequential IDs from server)
-currentMessages.sort((a, b) => Number(a.id) - Number(b.id));
-currentMessages.sort((a, b) => {
-  if (!a.timestamp) return 1;
-  if (!b.timestamp) return -1;
-  return a.timestamp.localeCompare(b.timestamp);
-});
-
+  currentMessages.sort((a, b) => Number(a.id) - Number(b.id));
+  currentMessages.sort((a, b) => {
+    if (!a.timestamp) return 1;
+    if (!b.timestamp) return -1;
+    return a.timestamp.localeCompare(b.timestamp);
+  });
 
   const displayedMessages =
     isSearching && searchQuery.trim()
