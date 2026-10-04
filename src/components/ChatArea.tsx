@@ -525,8 +525,8 @@ export const ChatArea: React.FC = () => {
   //const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
   //const currentUserId = authStorage.getUserId() ?? undefined;
   //const currentUserId = useCurrentUserUuid() ?? undefined;
-  //const currentUserId = useCurrentUserUuid();
-  const currentUserId = (activeConversation as any)?.userId ?? undefined;
+  const currentUserId = useCurrentUserUuid();
+  //const currentUserId = (activeConversation as any)?.userId ?? undefined;
   console.log(
     "raw apiMessages:",
     JSON.stringify(
