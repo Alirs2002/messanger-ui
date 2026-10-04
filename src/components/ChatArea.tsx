@@ -498,8 +498,7 @@ export const ChatArea: React.FC = () => {
     refresh: refreshMessages,
   } = useMessages(apiConversationId);
 
-  const currentUserId: string | undefined =
-    (activeConversation as any)?.targetId ?? store.currentUserId ?? undefined;
+  const currentUserId = store.currentUserId ?? undefined;
 
   const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
     mapApiMessage(
@@ -527,6 +526,14 @@ export const ChatArea: React.FC = () => {
     ...mappedApiMessages,
     ...optimisticOnly,
   ];
+  // Sort by numeric message ID (assumes sequential IDs from server)
+currentMessages.sort((a, b) => Number(a.id) - Number(b.id));
+currentMessages.sort((a, b) => {
+  if (!a.timestamp) return 1;
+  if (!b.timestamp) return -1;
+  return a.timestamp.localeCompare(b.timestamp);
+});
+
 
   const displayedMessages =
     isSearching && searchQuery.trim()

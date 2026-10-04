@@ -105,31 +105,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         </p>
 
         {/* زمان ارسال و آیکون وضعیت */}
-        <div
-          className={`flex items-center justify-end gap-1 mt-1 text-[10px] select-none ${
-            isOutgoing ? "text-emerald-100/80" : "text-gray-400"
-          }`}
-        >
-          <span>{createdAt}</span>
-
-          {isOutgoing && (
-            <span className="inline-flex items-center">
-              {status === "read" && (
-                <CheckCheck className="w-3.5 h-3.5 text-white" />
-              )}
-              {status === "delivered" && (
-                <CheckCheck className="w-3.5 h-3.5 opacity-80" />
-              )}
-              {status === "sent" && (
-                <Check className="w-3.5 h-3.5 opacity-80" />
-              )}
-              {status === "sending" && (
-                <Clock className="w-3 h-3 opacity-80 animate-pulse" />
-              )}
-              {!status && <Check className="w-3.5 h-3.5 opacity-80" />}
-            </span>
-          )}
-        </div>
+ <div className={`flex items-center gap-1 mt-1 text-xs ${
+  message.isOutgoing ? "justify-end text-white/70" : "justify-start text-gray-400"
+}`}>
+  {message.createdAt && <span>{message.createdAt}</span>}
+  {message.isOutgoing && (
+    <>
+      {message.status === "read" && <CheckCheck size={14} />}
+      {message.status === "delivered" && <CheckCheck size={14} className="opacity-50" />}
+      {message.status === "sent" && <Check size={14} />}
+      {message.status === "sending" && <Clock size={14} className="animate-pulse" />}
+      {!message.status && <Check size={14} />}
+    </>
+  )}
+</div>
       </div>
 
       {/* دکمه بازارسال برای پیام‌های دریافتی کانال */}
