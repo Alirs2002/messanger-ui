@@ -96,8 +96,13 @@ const mapApiMessage = (
     senderId: actualSenderId, // <--- آپدیت شد
     senderName: actualSenderName, // <--- آپدیت شد
     text: msg.text ?? "",
-    createdAt: formatPersianTime(msg.timestamp),
-    timestamp: formatPersianDate(msg.timestamp),
+    createdAt: formatPersianTime(
+      (msg as any).createdAt || (msg as any).timestamp,
+    ),
+    timestamp: formatPersianDate(
+      (msg as any).createdAt || (msg as any).timestamp,
+    ),
+
     isOutgoing,
     isMe: isOutgoing,
     isEdited: Boolean(msg.isEdited),

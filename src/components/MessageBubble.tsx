@@ -29,7 +29,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     <div
       id={`message-${message.id}`}
       className={`flex w-full gap-2 transition-all duration-500 items-end ${
-        isOutgoing ? "justify-end" : "justify-start"
+        isOutgoing ? "justify-start" : "justify-end"
       }`}
     >
       {/* دکمه بازارسال برای پیام‌های ارسالی کانال */}
@@ -105,20 +105,28 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         </p>
 
         {/* زمان ارسال و آیکون وضعیت */}
- <div className={`flex items-center gap-1 mt-1 text-xs ${
-  message.isOutgoing ? "justify-end text-white/70" : "justify-start text-gray-400"
-}`}>
-  {message.createdAt && <span>{message.createdAt}</span>}
-  {message.isOutgoing && (
-    <>
-      {message.status === "read" && <CheckCheck size={14} />}
-      {message.status === "delivered" && <CheckCheck size={14} className="opacity-50" />}
-      {message.status === "sent" && <Check size={14} />}
-      {message.status === "sending" && <Clock size={14} className="animate-pulse" />}
-      {!message.status && <Check size={14} />}
-    </>
-  )}
-</div>
+        <div
+          className={`flex items-center gap-1 mt-1 text-xs ${
+            message.isOutgoing
+              ? "justify-end text-white/70"
+              : "justify-start text-gray-400"
+          }`}
+        >
+          {message.createdAt && <span>{message.createdAt}</span>}
+          {message.isOutgoing && (
+            <>
+              {message.status === "read" && <CheckCheck size={14} />}
+              {message.status === "delivered" && (
+                <CheckCheck size={14} className="opacity-50" />
+              )}
+              {message.status === "sent" && <Check size={14} />}
+              {message.status === "sending" && (
+                <Clock size={14} className="animate-pulse" />
+              )}
+              {!message.status && <Check size={14} />}
+            </>
+          )}
+        </div>
       </div>
 
       {/* دکمه بازارسال برای پیام‌های دریافتی کانال */}

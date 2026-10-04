@@ -53,9 +53,14 @@ export function useMessages(conversationId: string | null) {
           ? [...newMessages, ...prev.messages]
           : newMessages;
 
-        const sorted = [...merged].sort(
-          (a, b) => toNum(a.timestamp) - toNum(b.timestamp),
-        );
+        //const sorted = [...merged].sort(
+        //(a, b) => toNum(a.timestamp) - toNum(b.timestamp),
+        //);
+        const sorted = [...merged].sort((a, b) => {
+          const timeA = toNum((a as any).createdAt || a.timestamp);
+          const timeB = toNum((b as any).createdAt || b.timestamp);
+          return timeA - timeB;
+        });
 
         return {
           messages: sorted,
