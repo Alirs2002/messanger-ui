@@ -170,6 +170,19 @@ export function mapMessageToItem(
       ? String(senderId) === String(currentUserId)
       : Boolean(raw.isOutgoing);
 
+  // Construct the nested replyToMessage object if a reply ID is present
+  const replyToMessage = raw.replyRefMessageId
+    ? {
+        id: String(raw.replyRefMessageId),
+        text: raw.replyRefMessageText || "",
+        senderName: raw.replyRefUserNickname || "",
+        // You can conditionally determine isOutgoing if the reply's sender ID matches the current user
+        isOutgoing: currentUserId != null && raw.replyRefSenderId != null 
+          ? String(raw.replyRefSenderId) === String(currentUserId) 
+          : false, 
+      }
+    : undefined;
+
   return {
     id: String(raw.id ?? raw.messageId ?? raw.uuid),
     senderId: senderId ? String(senderId) : undefined,
@@ -181,6 +194,7 @@ export function mapMessageToItem(
     isEdited: Boolean(raw.isEdited),
     status: mapMessageStatus(raw.state ?? raw.status),
     replyToId: raw.replyToMessageId ? String(raw.replyToMessageId) : undefined,
+    replyToMessage, // Add the constructed object here
   };
 }
 

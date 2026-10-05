@@ -73,7 +73,7 @@ const stateToStatus = (state?: string): MessageItem["status"] => {
   }
 };
 const mapApiMessage = (
-  msg: Message,
+  msg: Message | any, // 'any' allows us to safely access the flat backend properties
   currentUserId: string | number | undefined,
   conversationId: string | number | undefined,
   allApiMessages: Message[],
@@ -86,15 +86,34 @@ const mapApiMessage = (
     ? String(actualSenderId) === String(currentUserId)
     : false;
 
-  const replied = msg.replyToMessageId
-    ? allApiMessages.find((m) => String(m.id) === String(msg.replyToMessageId))
+  // 1. Get the reply ID (check both possible backend field names)
+  const replyRefId = msg.replyRefMessageId || msg.replyToMessageId;
+
+  // 2. Try to find it in current messages as a fallback for missing data
+  const replied = replyRefId
+    ? allApiMessages.find((m) => String(m.id) === String(replyRefId))
     : undefined;
+
+  // 3. Construct the reply object using the flat fields directly from the server
+  let replyToMessage = null;
+  if (replyRefId) {
+    replyToMessage = {
+      id: replyRefId,
+      // Use the flat text from server, fallback to the message text if we found it in the array
+      text: msg.replyRefMessageText || replied?.text || "",
+      // Use the flat nickname from server, fallback to array message, fallback to 'کاربر'
+      senderName: msg.replyRefUserNickname || replied?.authorNickname || replied?.senderNickname || "کاربر",
+      isOutgoing: currentUserId
+        ? String(msg.replyRefSenderId || replied?.authorUserId || replied?.senderId) === String(currentUserId)
+        : false,
+    };
+  }
 
   return {
     id: msg.id,
     conversationId: msg.conversationId ?? conversationId,
-    senderId: actualSenderId, // <--- آپدیت شد
-    senderName: actualSenderName, // <--- آپدیت شد
+    senderId: actualSenderId,
+    senderName: actualSenderName,
     text: msg.text ?? "",
     createdAt: formatPersianTime(
       (msg as any).createdAt || (msg as any).timestamp,
@@ -107,19 +126,10 @@ const mapApiMessage = (
     isMe: isOutgoing,
     isEdited: Boolean(msg.isEdited),
     status: stateToStatus((msg as any).messageState ?? msg.state),
-    replyToId: msg.replyToMessageId ?? null,
-    replyRefMessageId: msg.replyToMessageId ?? null,
-    replyToMessage: replied
-      ? {
-          id: replied.id,
-          text: replied.text ?? "",
-          senderName: replied.authorNickname || replied.senderNickname,
-          isOutgoing: currentUserId
-            ? String(replied.authorUserId || replied.senderId) ===
-              String(currentUserId)
-            : false,
-        }
-      : null,
+    replyToId: replyRefId ?? null,
+    replyRefMessageId: replyRefId ?? null,
+    // Use the newly constructed object here
+    replyToMessage,
     forwardFrom: null,
   };
 };
