@@ -73,11 +73,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         {replyToMessage && (
           <div
             onClick={(e) => {
-              e.stopPropagation();
-              if (replyToMessage.id && onReplyClick) {
-                onReplyClick(replyToMessage.id);
-              }
-            }}
+  e.stopPropagation();
+  if (onReplyClick && replyToMessage?.id) {
+    onReplyClick(replyToMessage.id);
+  }
+}}
+
             className={`mb-2 p-2 rounded-lg border-r-2 text-xs leading-tight cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all ${
               isOutgoing
                 ? "bg-black/15 border-white text-white/90 hover:bg-black/25"

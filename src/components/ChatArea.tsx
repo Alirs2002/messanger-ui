@@ -671,25 +671,25 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleScrollToMessage = (messageId: string | number) => {
-    const targetElement = document.getElementById(`msg-${messageId}`);
-    if (targetElement) {
+  const targetElement = document.getElementById(`msg-${messageId}`);
+  console.log("Looking for:", `msg-${messageId}`, "Found:", targetElement);
+  
+  if (targetElement) {
       targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      targetElement.classList.add(
-        "bg-amber-100/60",
-        "dark:bg-amber-900/30",
-        "p-1",
-        "rounded-2xl",
-      );
-      setTimeout(() => {
-        targetElement.classList.remove(
-          "bg-amber-100/60",
-          "dark:bg-amber-900/30",
-          "p-1",
-          "rounded-2xl",
-        );
-      }, 1200);
-    }
-  };
+      // بقیه کدها...
+
+
+    // Flash highlight
+    targetElement.classList.add("bg-amber-100/60", "dark:bg-amber-900/30", "transition-colors", "duration-300", "rounded-2xl");
+    setTimeout(() => {
+      targetElement.classList.remove("bg-amber-100/60", "dark:bg-amber-900/30");
+    }, 1500);
+  } else {
+    // If not in DOM, you can log or notify the user
+    console.warn(`Message with id ${messageId} is not in view or not loaded yet.`);
+  }
+};
+
 
   const handleContextMenu = (e: React.MouseEvent, message: MessageItem) => {
     e.preventDefault();
