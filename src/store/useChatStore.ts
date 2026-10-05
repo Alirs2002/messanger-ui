@@ -55,54 +55,56 @@ interface ChatStore {
 }
 
 const INITIAL_CONVERSATIONS: ConversationItem[] = [
-  {
-    id: 1,
-    title: "پشتیبانی مرکزی رسالت",
-    type: "SUPPORT",
-    lastMessage: "سلام، برای پیگیری وضعیت درخواست وام سوال داشتم.",
-    lastMessageTime: "۱۲:۳۲",
-    unreadCount: 0,
-    isPinned: true,
-    isMuted: false,
-    isVerified: true,
-    isOnline: true,
-  },
-  {
-    id: 2,
-    title: "کانال اطلاع‌رسانی",
-    type: "CHANNEL",
-    lastMessage:
-      "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای اقدام فرمایید.",
-    lastMessageTime: "۱۶:۱۰",
-    unreadCount: 40,
-    isPinned: true,
-    isMuted: true,
-    isVerified: true,
-  },
-  {
-    id: 3,
-    title: "گروه توسعه نرم‌افزار",
-    type: "GROUP",
-    lastMessage:
-      "علی: عالیه، اگر کامپوننت جدیدی نیاز بود بگید تا سریع اضافه کنم.",
-    lastMessageTime: "۰۹:۱۵",
-    unreadCount: 3,
-    isPinned: false,
-    isMuted: false,
-  },
-  {
-    id: 4,
-    title: "محمد رضایی",
-    type: "PERSONAL",
-    lastMessage: "ممنون، منتظرم.",
-    lastMessageTime: "۱۰:۱۷",
-    unreadCount: 0,
-    isPinned: false,
-    isMuted: false,
-    isOnline: true,
-  },
-];
+  // {
+  //   id: 1,
+  //   title: "پشتیبانی مرکزی رسالت",
+  //   type: "SUPPORT",
+  //   lastMessage: "سلام، برای پیگیری وضعیت درخواست وام سوال داشتم.",
+  //   lastMessageTime: "۱۲:۳۲",
+  //   unreadCount: 0,
+  //   isPinned: true,
+  //   isMuted: false,
+  //   isVerified: true,
+  //   isOnline: true,
+  // },
+  // {
+  //   id: 2,
+  //   title: "کانال اطلاع‌رسانی",
+  //   type: "CHANNEL",
+  //   lastMessage:
+  //     "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای اقدام فرمایید.",
+  //   lastMessageTime: "۱۶:۱۰",
+  //   unreadCount: 40,
+  //   isPinned: true,
+  //   isMuted: true,
+  //   isVerified: true,
+  // },
+  // {
+  //   id: 3,
+  //   title: "گروه توسعه نرم‌افزار",
+  //   type: "GROUP",
+  //   lastMessage:
+  //     "علی: عالیه، اگر کامپوننت جدیدی نیاز بود بگید تا سریع اضافه کنم.",
+  //   lastMessageTime: "۰۹:۱۵",
+  //   unreadCount: 3,
+  //   isPinned: false,
+  //   isMuted: false,
+  // },
+  // {
+  //   id: 4,
+  //   title: "محمد رضایی",
+  //   type: "PERSONAL",
+  //   lastMessage: "ممنون، منتظرم.",
+  //   lastMessageTime: "۱۰:۱۷",
+  //   unreadCount: 0,
+  //   isPinned: false,
+  //   isMuted: false,
+  //   isOnline: true,
+  // },
+  //conversations: [],
 
+];
+conversations: [];
 export const useChatStore = create<ChatStore>((set) => ({
   activeTab: "ALL",
   setActiveTab: (tab) => set({ activeTab: tab }),
