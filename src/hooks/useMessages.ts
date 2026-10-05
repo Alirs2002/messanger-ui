@@ -1,12 +1,7 @@
-// src/hooks/useMessages.ts
 import { useState, useEffect, useCallback, useRef } from "react";
 import { messagesApi } from "../services/apiService";
-import type {
-  Message,
-  Conversation,
-  ConversationDetail,
-} from "../types/messenger";
-import type { PersianDate } from "../types/messenger";
+import type { Message, Conversation, ConversationDetail, PersianDate } from "../types/messenger";
+import { db } from "../services/db";
 
 const toNum = (t: PersianDate | undefined): number => {
   if (!t) return 0;
@@ -47,15 +42,13 @@ export function useMessages(conversationId: string | null) {
 
   const applyDetail = useCallback(
     (detail: ConversationDetail, pageNo: number, prepend = false) => {
+      const newMessages = detail.messages.content;
+      
       setState((prev) => {
-        const newMessages = detail.messages.content;
         const merged = prepend
           ? [...newMessages, ...prev.messages]
           : newMessages;
 
-        //const sorted = [...merged].sort(
-        //(a, b) => toNum(a.timestamp) - toNum(b.timestamp),
-        //);
         const sorted = [...merged].sort((a, b) => {
           const timeA = toNum((a as any).createdAt || a.timestamp);
           const timeB = toNum((b as any).createdAt || b.timestamp);
@@ -73,32 +66,70 @@ export function useMessages(conversationId: string | null) {
           page: pageNo,
         };
       });
+
+      return newMessages;
     },
-    [],
+    []
   );
 
   useEffect(() => {
     if (!conversationId) return;
 
     activeConvId.current = conversationId;
-    setState((prev) => ({ ...prev, loading: true, error: null, messages: [] }));
+    let isSubscribed = true;
 
-    messagesApi
-      .getConversationDetail(conversationId, 0)
-      .then((detail) => {
-        if (activeConvId.current !== conversationId) return;
-        applyDetail(detail, 0, false);
-      })
-      .catch((err) => {
-        if (activeConvId.current !== conversationId) return;
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          error: err instanceof Error ? err.message : "خطا در دریافت پیام‌ها",
-        }));
-      });
+    async function initializeMessages() {
+      if (!conversationId) return;
+
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      try {
+        // 1. Instant Load from Dexie Cache
+        const cachedMessages = await db.messages
+          .where("conversationId")
+          .equals(conversationId)
+          .toArray();
+
+        if (isSubscribed && cachedMessages.length > 0) {
+          setState((prev) => ({
+            ...prev,
+            messages: cachedMessages as any, // Loading cache immediately
+            loading: false,
+          }));
+        }
+
+        // 2. Fetch fresh data from network
+        const detail = await messagesApi.getConversationDetail(conversationId, 0);
+
+        if (isSubscribed && activeConvId.current === conversationId) {
+          const fetchedMessages = applyDetail(detail, 0, false);
+
+          // 3. Sync fetched data back to Dexie cache
+          if (fetchedMessages.length > 0) {
+            const cacheableMessages = fetchedMessages.map((msg: any) => ({
+              ...msg,
+              id: msg.messageId || msg.id,
+              timestamp: msg.createdAt || msg.timestamp,
+              conversationId: conversationId
+            }));
+            await db.messages.bulkPut(cacheableMessages as any);
+          }
+        }
+      } catch (err) {
+        if (isSubscribed && activeConvId.current === conversationId) {
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: err instanceof Error ? err.message : "خطا در دریافت پیام‌ها",
+          }));
+        }
+      }
+    }
+
+    initializeMessages();
 
     return () => {
+      isSubscribed = false;
       activeConvId.current = null;
     };
   }, [conversationId, applyDetail]);
@@ -111,13 +142,29 @@ export function useMessages(conversationId: string | null) {
     try {
       const nextPage = state.page + 1;
       const detail = await messagesApi.getNextPage(conversationId, nextPage);
-      applyDetail(detail, nextPage, true);
+      
+      if (activeConvId.current === conversationId) {
+         const olderMessages = applyDetail(detail, nextPage, true);
+
+         // Sync older messages to cache
+         if (olderMessages.length > 0) {
+            const cacheableMessages = olderMessages.map((msg: any) => ({
+              ...msg,
+              id: msg.messageId || msg.id,
+              timestamp: msg.createdAt || msg.timestamp,
+              conversationId: conversationId
+            }));
+            await db.messages.bulkPut(cacheableMessages as any);
+         }
+      }
     } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        loadingMore: false,
-        error: err instanceof Error ? err.message : "خطا در بارگذاری بیشتر",
-      }));
+      if (activeConvId.current === conversationId) {
+        setState((prev) => ({
+          ...prev,
+          loadingMore: false,
+          error: err instanceof Error ? err.message : "خطا در بارگذاری بیشتر",
+        }));
+      }
     }
   }, [
     conversationId,
@@ -127,19 +174,34 @@ export function useMessages(conversationId: string | null) {
     applyDetail,
   ]);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     if (!conversationId) return;
     setState((prev) => ({ ...prev, loading: true, error: null, messages: [] }));
-    messagesApi
-      .getConversationDetail(conversationId, 0)
-      .then((detail) => applyDetail(detail, 0, false))
-      .catch((err) => {
+    
+    try {
+       const detail = await messagesApi.getConversationDetail(conversationId, 0);
+       if (activeConvId.current === conversationId) {
+          const freshMessages = applyDetail(detail, 0, false);
+          
+          if (freshMessages.length > 0) {
+            const cacheableMessages = freshMessages.map((msg: any) => ({
+              ...msg,
+              id: msg.messageId || msg.id,
+              timestamp: msg.createdAt || msg.timestamp,
+              conversationId: conversationId
+            }));
+            await db.messages.bulkPut(cacheableMessages as any);
+          }
+       }
+    } catch (err) {
+      if (activeConvId.current === conversationId) {
         setState((prev) => ({
           ...prev,
           loading: false,
           error: err instanceof Error ? err.message : "خطا",
         }));
-      });
+      }
+    }
   }, [conversationId, applyDetail]);
 
   return {

@@ -6,34 +6,24 @@ import { useChatSocket } from "./hooks/useChatSocket";
 
 export default function App() {
   const activeConversationId = useChatStore((s) => s.activeConversationId);
-
-  // دریافت لیست کانورسیشن‌ها از API
   useConversations();
-  // اتصال به WebSocket برای پیام‌های لایو
   useChatSocket();
 
   return (
-    <div
-      dir="rtl"
-      className="flex h-screen w-screen overflow-hidden bg-gray-100"
-    >
-      {/* Sidebar — روی موبایل وقتی چت باز باشه مخفی میشه */}
-      <div
-        className={`${
-          activeConversationId ? "hidden md:flex" : "flex"
-        } w-full md:w-96 flex-col`}
-      >
+    <div dir="rtl" className="flex h-screen w-screen overflow-hidden bg-gray-100">
+      
+      {/* Sidebar: Takes full width on mobile if no chat is open, 
+          but is a fixed width (w-96) on desktop (md) */}
+      <div className={`${activeConversationId ? "hidden md:flex" : "flex"} w-full md:w-96 flex-col border-l border-gray-200`}>
         <Sidebar />
       </div>
 
-      {/* Chat area — روی موبایل وقتی چت باز نباشه مخفی میشه */}
-      <div
-        className={`${
-          activeConversationId ? "flex" : "hidden md:flex"
-        } flex-1 flex-col`}
-      >
+      {/* Chat area: Hidden on mobile if no chat is open, 
+          takes remaining space on desktop */}
+      <div className={`${activeConversationId ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0`}>
         <ChatArea />
       </div>
+      
     </div>
   );
 }

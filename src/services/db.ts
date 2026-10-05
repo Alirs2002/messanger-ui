@@ -1,19 +1,25 @@
 // src/services/db.ts
 import Dexie, { type Table } from 'dexie';
-import type { ConversationItem, MessageItem } from '../types/chat';
+import type { ConversationItem } from '../types/chat';
+import type { Message } from '../types/messenger';
+
+// 1. Define what the cache actually holds: the raw API Message + conversationId
+export interface CachedMessage extends Message {
+  conversationId: string;
+}
 
 export class MessengerDB extends Dexie {
   conversations!: Table<ConversationItem, string | number>;
-  messages!: Table<MessageItem, string | number>;
+  
+  // 2. Change the table type from MessageItem to CachedMessage
+  messages!: Table<CachedMessage, string | number>;
 
   constructor() {
     super('MessengerDB');
-    
-    // Define schema: the first value is the Primary Key.
-    // We also index other fields we might want to query by later.
     this.version(1).stores({
       conversations: 'id, lastMessageTime, type',
-      messages: 'id, conversationId, timestamp'
+      // We index conversationId so we can quickly load a specific chat's history
+      messages: 'id, conversationId, timestamp' 
     });
   }
 }
