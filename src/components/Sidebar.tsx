@@ -13,6 +13,13 @@ const TABS = [
   { id: "SUPPORT", label: "پشتیبانی" },
 ];
 
+const formatTime = (ts: string | undefined): string => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return ts; // Persian / pre-formatted string
+  return d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+};
+
 export const Sidebar: React.FC = () => {
   const store = useChatStore() as any;
   const conversations: ConversationItem[] = store.conversations || [];
@@ -38,8 +45,8 @@ export const Sidebar: React.FC = () => {
       const matchesTab = activeTab === "ALL" || conv.type === activeTab;
       const matchesSearch =
         conv.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (conv.lastMessageText && conv.lastMessageText.toLowerCase().includes(searchQuery.toLowerCase()));
-
+        (conv.lastMessageText &&
+          conv.lastMessageText.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesTab && matchesSearch;
     })
     .sort((a: any, b: any) => {
@@ -50,18 +57,14 @@ export const Sidebar: React.FC = () => {
 
   const handleContextMenu = (e: React.MouseEvent, chat: ConversationItem) => {
     e.preventDefault();
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      conversation: chat,
-    });
+    setContextMenu({ x: e.clientX, y: e.clientY, conversation: chat });
   };
 
   const closeContextMenu = () => setContextMenu(null);
 
   return (
     <aside className="w-full md:w-96 h-screen flex flex-col bg-white dark:bg-gray-900 border-l border-slate-200 dark:border-gray-800 select-none">
-      {/* هدر و جستجو */}
+      {/* Header + search */}
       <div className="p-3 border-b border-slate-100 dark:border-gray-800 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <button className="p-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-xl transition text-slate-600 dark:text-gray-300">
@@ -83,7 +86,7 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
 
-        {/* تب‌ها */}
+        {/* Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-1">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -100,14 +103,14 @@ export const Sidebar: React.FC = () => {
                     : "text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800"
                 }`}
               >
-                <span>{tab.label}</span>
+                {tab.label}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* لیست گفتگوها */}
+      {/* Conversation list */}
       <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-gray-800/60">
         {filteredSortedConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-400 text-xs">
@@ -124,39 +127,66 @@ export const Sidebar: React.FC = () => {
                 ? chatMessages[chatMessages.length - 1]
                 : null;
 
-            const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessageText;
-            //const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTime;
-const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTimestamp;
-            // تشخیص فرستنده آخرین پیام با دقت بیشتر
+            const displayLastMessage = realLastMsg
+              ? realLastMsg.text
+              : c.lastMessageText;
+
+            // Safe against both ConversationItem (lastMessageTime) and raw
+            // Conversation (lastMessageTimestamp) shapes in the store.
+            const displayLastTime = formatTime(
+              realLastMsg
+                ? realLastMsg.createdAt
+                : (c.lastMessageTimestamp ?? c.lastMessageTime)
+            );
+
             const lastIsMine = realLastMsg
               ? Boolean(
-                  realLastMsg.isOutgoing || 
-                  realLastMsg.isMe || 
-                  (realLastMsg.senderId && currentUserId && String(realLastMsg.senderId) === String(currentUserId))
+                  realLastMsg.isOutgoing ||
+                    realLastMsg.isMe ||
+                    (realLastMsg.senderId &&
+                      currentUserId &&
+                      String(realLastMsg.senderId) === String(currentUserId))
                 )
               : Boolean(
-          c.lastMessageIsMine || 
-          (c.lastMessageAuthorUserId && currentUserId && String(c.lastMessageAuthorUserId) === String(currentUserId))
-        );
+                  c.lastMessageIsMine ||
+                    // safe fallback covering both type shapes
+                    ((c.lastMessageAuthorUserId ?? c.lastMessageSenderId) &&
+                      currentUserId &&
+                      String(c.lastMessageAuthorUserId ?? c.lastMessageSenderId) ===
+                        String(currentUserId))
+                );
 
             const isChannel = c.type === "CHANNEL";
             const isGroup = c.type === "GROUP" || c.type === "SUPPORT";
             const isPv = !isChannel && !isGroup;
 
-            const senderName = c.lastMessageSenderName || c.lastMessageNickname || realLastMsg?.senderName;
+            const senderName =
+              c.lastMessageSenderName ||
+              c.lastMessageNickname ||
+              realLastMsg?.senderName;
 
             let senderPrefix: string | null = null;
-            // رفع باگ ۱: نمایش نام فرستنده فقط برای گروه‌ها و پشتیبانی
             if (isGroup) {
               senderPrefix = lastIsMine ? "شما" : senderName || null;
             }
 
-            // وضعیت پیام (دابل‌تیک یا تک‌تیک)
-            const rawStatus = (realLastMsg?.state ?? c.lastMessageState ?? realLastMsg?.status ?? "").toUpperCase();
-            const isSeen = rawStatus === "SEEN" || rawStatus === "READ" || Boolean(realLastMsg && (realLastMsg as any).seen);
-            const isPending = rawStatus === "SENDING" || realLastMsg?.status === "sending";
-            
-            // نمایش تیک‌ها فقط برای چت شخصی و پیام ارسالی شما
+            // FIX: strict ternary — live message state never mixes with stale
+            // conversation snapshot. The old ?? chain fell through to
+            // c.lastMessageState when realLastMsg.state was undefined (optimistic
+            // sends), showing the previous message's tick state.
+            const rawStatus = realLastMsg
+              ? (realLastMsg.state ?? realLastMsg.status ?? "").toUpperCase()
+              : (c.lastMessageState ?? "").toUpperCase();
+
+            const isSeen =
+              rawStatus === "SEEN" ||
+              rawStatus === "READ" ||
+              Boolean(realLastMsg?.seen);
+
+            const isPending =
+              rawStatus === "SENDING" || realLastMsg?.status === "sending";
+
+            // Only personal chats show ticks on your own messages.
             const showStatusTicks = isPv && lastIsMine;
 
             return (
@@ -170,7 +200,7 @@ const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTimes
                     : "hover:bg-slate-50 dark:hover:bg-gray-800/50"
                 }`}
               >
-                <div 
+                <div
                   className="relative flex-shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -182,24 +212,23 @@ const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTimes
                     {c.title.charAt(0)}
                   </div>
                   {c.isOnline && (
-                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full" />
                   )}
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  {/* سطر اول: نام گفتگو و ساعت */}
+                  {/* Row 1: name + timestamp */}
                   <div className="flex items-center justify-between mb-1 gap-2">
                     <div className="flex items-center gap-1 min-w-0">
                       <span className="font-semibold text-sm text-slate-800 dark:text-gray-200 truncate">
                         {c.title}
                       </span>
                       {c.isVerified && (
-                        <span className="w-3.5 h-3.5 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[9px] font-bold">
+                        <span className="w-3.5 h-3.5 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0">
                           ✓
                         </span>
                       )}
                     </div>
-                    {/* نمایش ساعت در بالا سمت چپ */}
                     {displayLastTime && (
                       <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">
                         {displayLastTime}
@@ -207,7 +236,7 @@ const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTimes
                     )}
                   </div>
 
-                  {/* سطر دوم: پیام متنی و وضعیت‌ها (تیک، سنجاق، پین، نوتیفیکیشن) */}
+                  {/* Row 2: last message + status indicators */}
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400 gap-2">
                     <p className="truncate text-xs flex items-center gap-1">
                       {senderPrefix && (
@@ -219,21 +248,34 @@ const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTimes
                     </p>
 
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {/* نمایش تیک پیام روبروی پیام متنی در پایین ساعت */}
+                      {/*
+                        FIX: single conditional block — Clock replaces ticks
+                        when pending. The previous code rendered them as two
+                        independent elements so both could show at once.
+                      */}
                       {showStatusTicks && (
-                        isSeen ? (
+                        isPending ? (
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        ) : isSeen ? (
                           <CheckCheck className="w-4 h-4 text-emerald-500" />
                         ) : (
                           <Check className="w-4 h-4 text-slate-400" />
                         )
                       )}
-                      {lastIsMine && isPending && (
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      {c.isMuted && (
+                        <VolumeX className="w-3.5 h-3.5 text-slate-400 dark:text-gray-500" />
                       )}
-                      {c.isMuted && <VolumeX className="w-3.5 h-3.5 text-slate-400 dark:text-gray-500" />}
-                      {c.isPinned && <Pin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 rotate-45" />}
+                      {c.isPinned && (
+                        <Pin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 rotate-45" />
+                      )}
                       {c.unreadCount && c.unreadCount > 0 ? (
-                        <span className={`px-1.5 py-0.5 min-w-[20px] text-center text-[10px] font-bold rounded-full ${c.isMuted ? "bg-slate-400 dark:bg-slate-600 text-white" : "bg-emerald-600 text-white"}`}>
+                        <span
+                          className={`px-1.5 py-0.5 min-w-[20px] text-center text-[10px] font-bold rounded-full ${
+                            c.isMuted
+                              ? "bg-slate-400 dark:bg-slate-600 text-white"
+                              : "bg-emerald-600 text-white"
+                          }`}
+                        >
                           {c.unreadCount}
                         </span>
                       ) : null}
@@ -260,7 +302,11 @@ const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTimes
           onToggleMute={(c) => store.toggleMuteConversation?.(c.id)}
           onToggleUnread={(c) => store.toggleUnreadConversation?.(c.id)}
           onClearHistory={(c) => {
-            if (window.confirm("آیا از پاکسازی تمام پیام‌های این گفتگو اطمینان دارید؟")) {
+            if (
+              window.confirm(
+                "آیا از پاکسازی تمام پیام‌های این گفتگو اطمینان دارید؟"
+              )
+            ) {
               store.clearChat?.(c.id);
             }
           }}
@@ -275,8 +321,11 @@ const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTimes
       {profileModalChat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl relative animate-in fade-in zoom-in duration-200">
-            <div className="h-24 bg-gradient-to-r from-emerald-600 to-teal-500"></div>
-            <button onClick={() => setProfileModalChat(null)} className="absolute top-4 left-4 p-1.5 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors">
+            <div className="h-24 bg-gradient-to-r from-emerald-600 to-teal-500" />
+            <button
+              onClick={() => setProfileModalChat(null)}
+              className="absolute top-4 left-4 p-1.5 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors"
+            >
               <X className="w-5 h-5" />
             </button>
             <div className="px-6 pb-6 relative -mt-12">
