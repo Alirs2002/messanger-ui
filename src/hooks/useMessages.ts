@@ -15,6 +15,22 @@ const toNum = (t: PersianDate | undefined): number => {
   );
 };
 
+// Coerce every message — whether from the API or Dexie — into one consistent shape.
+// The scroll-to-reply feature must use msg.messageId for DOM lookups; this guarantees
+// that field is always a string and always present.
+const normalizeMessage = (msg: any, conversationId: string): Message => {
+  const messageId = String(msg.messageId ?? msg.id ?? "");
+  const timestamp = msg.createdAt ?? msg.timestamp;
+  return {
+    ...msg,
+    id: messageId,
+    messageId,
+    timestamp,
+    createdAt: timestamp,
+    conversationId,
+  } as unknown as Message;
+};
+
 interface UseMessagesState {
   messages: Message[];
   conversation: Conversation | null;
@@ -41,19 +57,20 @@ export function useMessages(conversationId: string | null) {
   const activeConvId = useRef<string | null>(null);
 
   const applyDetail = useCallback(
-    (detail: ConversationDetail, pageNo: number, prepend = false) => {
-      const newMessages = detail.messages.content;
-      
+    (detail: ConversationDetail, pageNo: number, convId: string, prepend = false) => {
+      // Normalize at the point of ingestion from the API
+      const newMessages = detail.messages.content.map((m) =>
+        normalizeMessage(m, convId)
+      );
+
       setState((prev) => {
         const merged = prepend
           ? [...newMessages, ...prev.messages]
           : newMessages;
 
-        const sorted = [...merged].sort((a, b) => {
-          const timeA = toNum((a as any).createdAt || a.timestamp);
-          const timeB = toNum((b as any).createdAt || b.timestamp);
-          return timeA - timeB;
-        });
+        const sorted = [...merged].sort(
+          (a, b) => toNum(a.timestamp) - toNum(b.timestamp)
+        );
 
         return {
           messages: sorted,
@@ -84,16 +101,20 @@ export function useMessages(conversationId: string | null) {
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        // 1. Instant Load from Dexie Cache
-        const cachedMessages = await db.messages
+        // 1. Instant load from Dexie — normalize so shape matches API data
+        const cachedRaw = await db.messages
           .where("conversationId")
           .equals(conversationId)
           .toArray();
 
-        if (isSubscribed && cachedMessages.length > 0) {
+        if (isSubscribed && cachedRaw.length > 0) {
+          const cachedMessages = cachedRaw
+            .map((m) => normalizeMessage(m, conversationId))
+            .sort((a, b) => toNum(a.timestamp) - toNum(b.timestamp));
+
           setState((prev) => ({
             ...prev,
-            messages: cachedMessages as any, // Loading cache immediately
+            messages: cachedMessages,
             loading: false,
           }));
         }
@@ -102,17 +123,11 @@ export function useMessages(conversationId: string | null) {
         const detail = await messagesApi.getConversationDetail(conversationId, 0);
 
         if (isSubscribed && activeConvId.current === conversationId) {
-          const fetchedMessages = applyDetail(detail, 0, false);
+          const fetchedMessages = applyDetail(detail, 0, conversationId, false);
 
-          // 3. Sync fetched data back to Dexie cache
+          // 3. Write normalized shapes back to Dexie
           if (fetchedMessages.length > 0) {
-            const cacheableMessages = fetchedMessages.map((msg: any) => ({
-              ...msg,
-              id: msg.messageId || msg.id,
-              timestamp: msg.createdAt || msg.timestamp,
-              conversationId: conversationId
-            }));
-            await db.messages.bulkPut(cacheableMessages as any);
+            await db.messages.bulkPut(fetchedMessages as any);
           }
         }
       } catch (err) {
@@ -142,20 +157,13 @@ export function useMessages(conversationId: string | null) {
     try {
       const nextPage = state.page + 1;
       const detail = await messagesApi.getNextPage(conversationId, nextPage);
-      
-      if (activeConvId.current === conversationId) {
-         const olderMessages = applyDetail(detail, nextPage, true);
 
-         // Sync older messages to cache
-         if (olderMessages.length > 0) {
-            const cacheableMessages = olderMessages.map((msg: any) => ({
-              ...msg,
-              id: msg.messageId || msg.id,
-              timestamp: msg.createdAt || msg.timestamp,
-              conversationId: conversationId
-            }));
-            await db.messages.bulkPut(cacheableMessages as any);
-         }
+      if (activeConvId.current === conversationId) {
+        const olderMessages = applyDetail(detail, nextPage, conversationId, true);
+
+        if (olderMessages.length > 0) {
+          await db.messages.bulkPut(olderMessages as any);
+        }
       }
     } catch (err) {
       if (activeConvId.current === conversationId) {
@@ -166,33 +174,22 @@ export function useMessages(conversationId: string | null) {
         }));
       }
     }
-  }, [
-    conversationId,
-    state.loadingMore,
-    state.hasMore,
-    state.page,
-    applyDetail,
-  ]);
+  }, [conversationId, state.loadingMore, state.hasMore, state.page, applyDetail]);
 
   const refresh = useCallback(async () => {
     if (!conversationId) return;
     setState((prev) => ({ ...prev, loading: true, error: null, messages: [] }));
-    
+
     try {
-       const detail = await messagesApi.getConversationDetail(conversationId, 0);
-       if (activeConvId.current === conversationId) {
-          const freshMessages = applyDetail(detail, 0, false);
-          
-          if (freshMessages.length > 0) {
-            const cacheableMessages = freshMessages.map((msg: any) => ({
-              ...msg,
-              id: msg.messageId || msg.id,
-              timestamp: msg.createdAt || msg.timestamp,
-              conversationId: conversationId
-            }));
-            await db.messages.bulkPut(cacheableMessages as any);
-          }
-       }
+      const detail = await messagesApi.getConversationDetail(conversationId, 0);
+
+      if (activeConvId.current === conversationId) {
+        const freshMessages = applyDetail(detail, 0, conversationId, false);
+
+        if (freshMessages.length > 0) {
+          await db.messages.bulkPut(freshMessages as any);
+        }
+      }
     } catch (err) {
       if (activeConvId.current === conversationId) {
         setState((prev) => ({

@@ -87,12 +87,15 @@ const mapApiMessage = (
     : false;
 
   // 1. Get the reply ID (check both possible backend field names)
-  const replyRefId = msg.replyRefMessageId || msg.replyToMessageId;
-
+  //const replyRefId = msg.replyRefMessageId || msg.replyToMessageId;
+const replyRefId = String(
+  msg.replyRefMessageId ?? msg.replyToMessageId ?? ""
+);
   // 2. Try to find it in current messages as a fallback for missing data
   const replied = replyRefId
     ? allApiMessages.find((m) => String(m.id) === String(replyRefId))
     : undefined;
+
 
   // 3. Construct the reply object using the flat fields directly from the server
   let replyToMessage = null;
