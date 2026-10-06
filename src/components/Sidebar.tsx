@@ -127,12 +127,17 @@ export const Sidebar: React.FC = () => {
             const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessageText;
             const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTime;
 
-            // تشخیص فرستنده آخرین پیام
+            // تشخیص فرستنده آخرین پیام با دقت بیشتر
             const lastIsMine = realLastMsg
-              ? Boolean(realLastMsg.isOutgoing || realLastMsg.isMe)
-              : (c.lastMessageSenderId !== undefined && currentUserId !== undefined
-                  ? String(c.lastMessageSenderId) === String(currentUserId)
-                  : Boolean(c.lastMessageIsMine));
+              ? Boolean(
+                  realLastMsg.isOutgoing || 
+                  realLastMsg.isMe || 
+                  (realLastMsg.senderId && currentUserId && String(realLastMsg.senderId) === String(currentUserId))
+                )
+              : Boolean(
+                  c.lastMessageIsMine || 
+                  (c.lastMessageSenderId && currentUserId && String(c.lastMessageSenderId) === String(currentUserId))
+                );
 
             const isChannel = c.type === "CHANNEL";
             const isGroup = c.type === "GROUP" || c.type === "SUPPORT";
@@ -141,6 +146,7 @@ export const Sidebar: React.FC = () => {
             const senderName = c.lastMessageSenderName || c.lastMessageNickname || realLastMsg?.senderName;
 
             let senderPrefix: string | null = null;
+            // رفع باگ ۱: نمایش نام فرستنده فقط برای گروه‌ها و پشتیبانی
             if (isGroup) {
               senderPrefix = lastIsMine ? "شما" : senderName || null;
             }
@@ -149,6 +155,8 @@ export const Sidebar: React.FC = () => {
             const rawStatus = (realLastMsg?.state ?? c.lastMessageState ?? realLastMsg?.status ?? "").toUpperCase();
             const isSeen = rawStatus === "SEEN" || rawStatus === "READ" || Boolean(realLastMsg && (realLastMsg as any).seen);
             const isPending = rawStatus === "SENDING" || realLastMsg?.status === "sending";
+            
+            // نمایش تیک‌ها فقط برای چت شخصی و پیام ارسالی شما
             const showStatusTicks = isPv && lastIsMine;
 
             return (
@@ -178,8 +186,9 @@ export const Sidebar: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                  {/* سطر اول: نام گفتگو و ساعت */}
+                  <div className="flex items-center justify-between mb-1 gap-2">
                     <div className="flex items-center gap-1 min-w-0">
                       <span className="font-semibold text-sm text-slate-800 dark:text-gray-200 truncate">
                         {c.title}
@@ -190,34 +199,36 @@ export const Sidebar: React.FC = () => {
                         </span>
                       )}
                     </div>
+                    {/* نمایش ساعت در بالا سمت چپ */}
+                    {displayLastTime && (
+                      <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">
+                        {displayLastTime}
+                      </span>
+                    )}
                   </div>
 
+                  {/* سطر دوم: پیام متنی و وضعیت‌ها (تیک، سنجاق، پین، نوتیفیکیشن) */}
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400 gap-2">
-                    <p className="truncate text-xs max-w-[200px] flex items-center gap-1">
+                    <p className="truncate text-xs flex items-center gap-1">
                       {senderPrefix && (
                         <span className="font-semibold text-slate-700 dark:text-gray-300 whitespace-nowrap">
                           {senderPrefix}:{" "}
                         </span>
                       )}
                       <span className="truncate">{displayLastMessage}</span>
-                      {showStatusTicks && (
-                        isSeen ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                        )
-                      )}
                     </p>
 
-                    {/* ساعت ارسال پیام در تمام حالات */}
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {displayLastTime && (
-                        <span className="text-[11px] text-slate-400 whitespace-nowrap flex items-center gap-0.5">
-                          {lastIsMine && isPending && (
-                            <Clock className="w-3 h-3 text-slate-400" />
-                          )}
-                          {displayLastTime}
-                        </span>
+                      {/* نمایش تیک پیام روبروی پیام متنی در پایین ساعت */}
+                      {showStatusTicks && (
+                        isSeen ? (
+                          <CheckCheck className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <Check className="w-4 h-4 text-slate-400" />
+                        )
+                      )}
+                      {lastIsMine && isPending && (
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
                       )}
                       {c.isMuted && <VolumeX className="w-3.5 h-3.5 text-slate-400 dark:text-gray-500" />}
                       {c.isPinned && <Pin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 rotate-45" />}
