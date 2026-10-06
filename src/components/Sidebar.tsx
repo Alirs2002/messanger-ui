@@ -125,8 +125,8 @@ export const Sidebar: React.FC = () => {
                 : null;
 
             const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessageText;
-            const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTime;
-
+            //const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTime;
+const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTimestamp;
             // تشخیص فرستنده آخرین پیام با دقت بیشتر
             const lastIsMine = realLastMsg
               ? Boolean(
@@ -135,9 +135,9 @@ export const Sidebar: React.FC = () => {
                   (realLastMsg.senderId && currentUserId && String(realLastMsg.senderId) === String(currentUserId))
                 )
               : Boolean(
-                  c.lastMessageIsMine || 
-                  (c.lastMessageSenderId && currentUserId && String(c.lastMessageSenderId) === String(currentUserId))
-                );
+          c.lastMessageIsMine || 
+          (c.lastMessageAuthorUserId && currentUserId && String(c.lastMessageAuthorUserId) === String(currentUserId))
+        );
 
             const isChannel = c.type === "CHANNEL";
             const isGroup = c.type === "GROUP" || c.type === "SUPPORT";
