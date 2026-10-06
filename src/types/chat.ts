@@ -43,7 +43,7 @@ export interface ConversationItem {
   title: string;
   type: "PERSONAL" | "GROUP" | "CHANNEL" | "SUPPORT";
   avatar?: string;
-  lastMessage?: string;
+  lastMessageText?: string;
   lastMessageTime?: string;
   unreadCount?: number;
   isUnread?: boolean;

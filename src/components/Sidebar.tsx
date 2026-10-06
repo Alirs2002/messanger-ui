@@ -37,8 +37,9 @@ export const Sidebar: React.FC = () => {
       const conv = item as any;
       const matchesTab = activeTab === "ALL" || conv.type === activeTab;
       const matchesSearch =
-        conv.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (conv.lastMessage && conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase()));
+  conv.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  (conv.lastMessageText && conv.lastMessageText.toLowerCase().includes(searchQuery.toLowerCase()));
+
       return matchesTab && matchesSearch;
     })
     .sort((a: any, b: any) => {
@@ -123,7 +124,9 @@ export const Sidebar: React.FC = () => {
                 ? chatMessages[chatMessages.length - 1]
                 : null;
 
-            const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessage;
+            //const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessage;
+            const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessageText;
+
             const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTime;
 
             return (
