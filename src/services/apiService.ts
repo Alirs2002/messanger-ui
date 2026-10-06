@@ -107,6 +107,8 @@ export function mapConversation(raw: ConversationRaw): ConversationItem {
     lastMessageText: raw.lastMessageText, // نام 'raw' را با نام پارامتر ورودی تابع جایگزین کنید
     lastMessageSenderName: raw.lastMessageSenderName,
     lastMessageNickname: raw.lastMessageNickname,
+lastMessageState: (raw as any).lastMessageState ?? (raw as any).lastMessage?.state,
+lastMessageSenderId: (raw as any).lastMessage?.senderId ?? (raw as any).lastMessageSenderId,
 
     lastMessageTime: raw.lastMessageTime,
     unreadCount: raw.unreadCount ?? 0,

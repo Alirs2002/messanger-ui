@@ -52,6 +52,8 @@ export interface ConversationItem {
   lastMessageSenderName?: string;
   isOnline?: boolean;
   isVerified?: boolean;
+  lastMessageState?: "SEEN" | "DELIVERED" | "SENT" | null;
+  lastMessageSenderId?: string | number;
   isMuted?: boolean;
   isBlocked?: boolean;
   membersCount?: number;

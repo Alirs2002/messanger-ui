@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Search, Menu, Pin, VolumeX, X, User, Info } from "lucide-react";
+import { Search, Menu, Pin, VolumeX, X, Clock, Check, CheckCheck } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import ConversationContextMenu from "./ConversationContextMenu";
 import type { ConversationItem } from "../types/chat";
+import { useCurrentUserUuid } from "../hooks/useCurrentUserUuid";
 
 const TABS = [
   { id: "ALL", label: "همه" },
@@ -13,14 +14,13 @@ const TABS = [
 ];
 
 export const Sidebar: React.FC = () => {
-  // استفاده از as any برای جلوگیری از خطاهای تایپ‌اسکریپت مربوط به فیلدهای اضافه شده در استور
   const store = useChatStore() as any;
   const conversations: ConversationItem[] = store.conversations || [];
   const messages = store.messages || {};
   const activeConversationId = store.activeConversationId;
   const setActiveConversation = store.setActiveConversation;
-  
-  // استفاده از استیت داخلی در صورتی که در استور تعریف نشده باشند
+  const currentUserId = useCurrentUserUuid();
+
   const [activeTab, setActiveTab] = useState(store.activeTab || "ALL");
   const [searchQuery, setSearchQuery] = useState(store.searchQuery || "");
 
@@ -37,8 +37,8 @@ export const Sidebar: React.FC = () => {
       const conv = item as any;
       const matchesTab = activeTab === "ALL" || conv.type === activeTab;
       const matchesSearch =
-  conv.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  (conv.lastMessageText && conv.lastMessageText.toLowerCase().includes(searchQuery.toLowerCase()));
+        conv.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (conv.lastMessageText && conv.lastMessageText.toLowerCase().includes(searchQuery.toLowerCase()));
 
       return matchesTab && matchesSearch;
     })
@@ -126,9 +126,30 @@ export const Sidebar: React.FC = () => {
 
             const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessageText;
             const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTime;
-            
-            // نام فرستنده آخرین پیام (پشتیبانی از هر دو نام احتمالی که ممکن است در استور ذخیره کرده باشید)
-            const senderName = c.lastMessageSenderName || c.lastMessageNickname;
+
+            // تشخیص فرستنده آخرین پیام
+            const lastIsMine = realLastMsg
+              ? Boolean(realLastMsg.isOutgoing || realLastMsg.isMe)
+              : (c.lastMessageSenderId !== undefined && currentUserId !== undefined
+                  ? String(c.lastMessageSenderId) === String(currentUserId)
+                  : Boolean(c.lastMessageIsMine));
+
+            const isChannel = c.type === "CHANNEL";
+            const isGroup = c.type === "GROUP" || c.type === "SUPPORT";
+            const isPv = !isChannel && !isGroup;
+
+            const senderName = c.lastMessageSenderName || c.lastMessageNickname || realLastMsg?.senderName;
+
+            let senderPrefix: string | null = null;
+            if (isGroup) {
+              senderPrefix = lastIsMine ? "شما" : senderName || null;
+            }
+
+            // وضعیت پیام (دابل‌تیک یا تک‌تیک)
+            const rawStatus = (realLastMsg?.state ?? c.lastMessageState ?? realLastMsg?.status ?? "").toUpperCase();
+            const isSeen = rawStatus === "SEEN" || rawStatus === "READ" || Boolean(realLastMsg && (realLastMsg as any).seen);
+            const isPending = rawStatus === "SENDING" || realLastMsg?.status === "sending";
+            const showStatusTicks = isPv && lastIsMine;
 
             return (
               <div
@@ -169,22 +190,35 @@ export const Sidebar: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-slate-400 whitespace-nowrap">
-                      {displayLastTime}
-                    </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400">
-                    <p className="truncate text-xs max-w-[200px]">
-                      {/* نمایش نام فرستنده (در صورت وجود) */}
-                      {senderName && (
-                        <span className="font-semibold text-slate-700 dark:text-gray-300">
-                          {senderName}:{" "}
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400 gap-2">
+                    <p className="truncate text-xs max-w-[200px] flex items-center gap-1">
+                      {senderPrefix && (
+                        <span className="font-semibold text-slate-700 dark:text-gray-300 whitespace-nowrap">
+                          {senderPrefix}:{" "}
                         </span>
                       )}
-                      {displayLastMessage}
+                      <span className="truncate">{displayLastMessage}</span>
+                      {showStatusTicks && (
+                        isSeen ? (
+                          <CheckCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        )
+                      )}
                     </p>
+
+                    {/* ساعت ارسال پیام در تمام حالات */}
                     <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {displayLastTime && (
+                        <span className="text-[11px] text-slate-400 whitespace-nowrap flex items-center gap-0.5">
+                          {lastIsMine && isPending && (
+                            <Clock className="w-3 h-3 text-slate-400" />
+                          )}
+                          {displayLastTime}
+                        </span>
+                      )}
                       {c.isMuted && <VolumeX className="w-3.5 h-3.5 text-slate-400 dark:text-gray-500" />}
                       {c.isPinned && <Pin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 rotate-45" />}
                       {c.unreadCount && c.unreadCount > 0 ? (
