@@ -48,6 +48,8 @@ export interface ConversationItem {
   unreadCount?: number;
   isUnread?: boolean;
   isPinned?: boolean;
+  lastMessageNickname?: string;
+  lastMessageSenderName?: string;
   isOnline?: boolean;
   isVerified?: boolean;
   isMuted?: boolean;

@@ -124,10 +124,11 @@ export const Sidebar: React.FC = () => {
                 ? chatMessages[chatMessages.length - 1]
                 : null;
 
-            //const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessage;
             const displayLastMessage = realLastMsg ? realLastMsg.text : c.lastMessageText;
-
             const displayLastTime = realLastMsg ? realLastMsg.createdAt : c.lastMessageTime;
+            
+            // نام فرستنده آخرین پیام (پشتیبانی از هر دو نام احتمالی که ممکن است در استور ذخیره کرده باشید)
+            const senderName = c.lastMessageSenderName || c.lastMessageNickname;
 
             return (
               <div
@@ -175,6 +176,12 @@ export const Sidebar: React.FC = () => {
 
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400">
                     <p className="truncate text-xs max-w-[200px]">
+                      {/* نمایش نام فرستنده (در صورت وجود) */}
+                      {senderName && (
+                        <span className="font-semibold text-slate-700 dark:text-gray-300">
+                          {senderName}:{" "}
+                        </span>
+                      )}
                       {displayLastMessage}
                     </p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">

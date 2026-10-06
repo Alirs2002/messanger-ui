@@ -60,6 +60,9 @@ export interface ConversationRaw {
   avatar?: string;
   lastMessageText?: string;
   lastMessageTime?: string;
+  lastMessageSenderName?: string;
+  lastMessageNickname?: string;
+
   unreadCount?: number;
   isPinned?: boolean;
   isOnline?: boolean;
@@ -102,12 +105,15 @@ export function mapConversation(raw: ConversationRaw): ConversationItem {
       (raw.targetType === "ALL" ? "PERSONAL" : raw.targetType) ?? "PERSONAL",
     avatar: raw.avatar,
     lastMessageText: raw.lastMessageText, // نام 'raw' را با نام پارامتر ورودی تابع جایگزین کنید
+    lastMessageSenderName: raw.lastMessageSenderName,
+    lastMessageNickname: raw.lastMessageNickname,
 
     lastMessageTime: raw.lastMessageTime,
     unreadCount: raw.unreadCount ?? 0,
     isPinned: raw.isPinned ?? false,
     isOnline: raw.isOnline ?? false,
     isVerified: raw.isVerified ?? false,
+    
     isMuted: raw.isMuted ?? false,
     isBlocked: raw.isBlocked ?? false,
     isAdmin: raw.isAdmin,
