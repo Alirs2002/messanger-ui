@@ -5,6 +5,8 @@ import type {
   MessageItem,
   SocketEnvelope,
 } from "../types/chat";
+import { authStorage } from "../services/auth";
+
 
 interface ChatStore {
   activeTab: ConversationType;
@@ -157,38 +159,72 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         const isMe =
           Number(content.senderId || content.userId) === Number(currentUserId);
+  //         const isMe =
+  // (content.authorUserId || content.senderId || content.userId) === currentUserId;
 
         // If it's an echo of a message we already sent, skip adding a duplicate
         if (isMe && isResponse) {
           return;
         }
+console.log("Socket message content keys:", Object.keys(content));
+console.log("Socket message content:", content);
+const currentUserUuid = authStorage.getUserUuid();
+   const newMsg: MessageItem = {
+  id: content.id || content.messageId || Date.now(),
+  conversationId,
+  senderId: content.senderId || content.authorUserId || content.userId || null,
+  isOutgoing: isMe,
+  isMe,
+  text: content.text || content.content || "",
+  createdAt: (() => {
+    const raw =
+      content.createdAt ||
+      content.timestamp ||
+      content.sentAt ||
+      content.time ||
+      content.date ||
+      content.createdDate;
+    if (!raw) {
+      return new Date().toLocaleTimeString("fa-IR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    const d = new Date(raw);
+    return isNaN(d.getTime())
+      ? new Date().toLocaleTimeString("fa-IR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+  })(),
+  senderName:
+    content.senderName ||
+    content.authorNickname ||
+    content.senderUsername ||
+    "",
+  status: "delivered",
+  replyToId:
+    content.replyRef?.id ??
+    content.replyRefMessageId ??
+    content.replyToMessageId ??
+    null,
+  forwardFrom: null,
+  replyRefMessageId: content.replyRef?.id || content.replyRefMessageId,
+  replyToMessage: content.replyRef
+    ? {
+        id: content.replyRef.id,
+        text: content.replyRef.text || content.replyRef.content || "",
+        senderName: content.replyRef.senderName || "",
+        isOutgoing:
+          (content.replyRef.senderId ||
+            content.replyRef.authorUserId ||
+            content.replyRef.userId) === currentUserUuid,
+      }
+    : undefined,
+};
 
-        const newMsg: MessageItem = {
-          id: content.id || content.messageId || Date.now(),
-          conversationId,
-          isOutgoing: isMe,
-          isMe,
-          text: content.text || content.content || "",
-          createdAt: content.createdAt
-            ? new Date(content.createdAt).toLocaleTimeString("fa-IR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : new Date().toLocaleTimeString("fa-IR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-          senderName: content.senderName || content.authorNickname || content.senderUsername || "",       // ← add
-          status: "delivered",
-          replyRefMessageId: content.replyRef?.id || content.replyRefMessageId,
-          replyToMessage: content.replyRef
-            ? {
-                id: content.replyRef.id,
-                text: content.replyRef.text || content.replyRef.content || "",
-                senderName: content.replyRef.senderName || "",
-              }
-            : undefined,
-        };
+
 
         set((state) => {
           const currentList =
