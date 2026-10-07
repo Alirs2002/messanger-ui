@@ -19,6 +19,13 @@ export interface ReplyToMessageInfo {
   isOutgoing?: boolean;
 }
 
+export interface SocketEnvelope<T = any> {
+  type: string;        // E.g., "MESSAGE_SEND", "USER_DELETE", "GROUP_CREATE"
+  content: T;          // The actual REST API payload (MessageItem, ConversationItem, etc.)
+  isResponse: boolean; // false if someone else did it, true if it's an echo of your own action
+}
+
+
 export interface MessageItem {
   id: string | number;
   conversationId?: string | number;

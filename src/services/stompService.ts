@@ -1,67 +1,66 @@
-// codes/src/services/stompService.ts
 import { Client } from "@stomp/stompjs";
-import type { StompSubscription } from "@stomp/stompjs";
+import { authStorage } from "./auth";
 
 class StompService {
   private client: Client | null = null;
-  private subscription: StompSubscription | null = null;
+  private subscription: any = null;
 
-  connect(
-    token: string,
-    currentUserId: number | string,
-    onMessageReceived: (payload: any) => void,
-  ) {
-    // جلوگیری از اتصالات همزمان و تکراری
+  connect(onMessageReceived: (payload: any) => void) {
     if (this.client?.active) {
-      this.disconnect();
+      return;
     }
 
-    // آدرس پایه وب‌سوکت
-    //const baseUrl = import.meta.env.VITE_BASE_URL || "https://api.mresalat.ir";
-    //const socketUrl = `${baseUrl.replace(/^http/, "ws")}/messenger/websocket`;
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const socketUrl = import.meta.env.DEV
-      ? `${protocol}//${window.location.host}/messenger/websocket`
-      : `${(import.meta.env.VITE_BASE_URL || "https://api.mresalat.ir").replace(/^http/, "ws")}/messenger/websocket`;
+    // اگر کلایت قبلی غیرفعال شده بود، ریست شود
+    if (this.client) {
+      this.client = null;
+    }
+
+    const token = authStorage.getToken();
+    const currentUserId = authStorage.getUserUuid() || authStorage.getUserId();
+
+    if (!token || !currentUserId) {
+      console.warn("[STOMP] Missing token or currentUserId");
+      return;
+    }
+
+    //const brokerURL = "wss://api.mresalat.ir/messenger/websocket";
+// در محیط لوکال/توسعه به سرور Vite وصل شود، در پروداکشن به سرور اصلی
+const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+const brokerURL = isDev
+  ? `${wsProtocol}//${window.location.host}/messenger/websocket`
+  : "wss://api.mresalat.ir/messenger/websocket";
 
     this.client = new Client({
-      brokerURL: socketUrl,
+      brokerURL,
       connectHeaders: {
-        Authorization: token.startsWith("Bearer ") ? token : `Bearer ${token}`, // توکن خام بدون Bearer
+        Authorization: token.startsWith("Bearer ") ? token : `Bearer ${token}`,
       },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       debug: (str) => {
-        if (import.meta.env.DEV) {
-          console.log("[STOMP Debug]:", str);
-        }
+        console.log("[STOMP Debug]:", str);
       },
       onConnect: () => {
-        console.log("✅ Connected to WebSocket STOMP!");
-
+        console.log("[STOMP] Connected successfully");
         const userTopic = `user.${currentUserId}`;
 
-        if (this.client) {
-          this.subscription = this.client.subscribe(userTopic, (message) => {
-            if (message.body) {
-              try {
-                const parsed = JSON.parse(message.body);
-                console.log("[WebSocket Payload Received]:", parsed);
-                onMessageReceived(parsed);
-              } catch (err) {
-                console.error("Error parsing socket JSON:", err);
-              }
-            }
-          });
-        }
+        this.subscription = this.client?.subscribe(userTopic, (message) => {
+          try {
+            const parsed = JSON.parse(message.body);
+            onMessageReceived(parsed);
+          } catch (err) {
+            console.error("[STOMP] Failed to parse message body:", err);
+          }
+        });
       },
       onStompError: (frame) => {
-        console.error("STOMP Broker error:", frame.headers["message"]);
-        console.error("Details:", frame.body);
+        console.error("[STOMP] Broker error:", frame.headers["message"], frame.body);
       },
       onWebSocketClose: () => {
-        console.warn("WebSocket Connection Closed");
+        console.log("[STOMP] WebSocket closed");
       },
     });
 
@@ -74,9 +73,9 @@ class StompService {
       this.subscription = null;
     }
     if (this.client) {
-      this.client.deactivate();
+      const activeClient = this.client;
       this.client = null;
-      console.log("WebSocket Disconnected");
+      activeClient.deactivate();
     }
   }
 
@@ -86,4 +85,3 @@ class StompService {
 }
 
 export const stompService = new StompService();
-export default stompService;

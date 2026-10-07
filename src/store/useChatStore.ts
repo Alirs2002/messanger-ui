@@ -3,6 +3,7 @@ import type {
   ConversationItem,
   ConversationType,
   MessageItem,
+  SocketEnvelope,
 } from "../types/chat";
 
 interface ChatStore {
@@ -16,17 +17,15 @@ interface ChatStore {
   messages: Record<string | number, MessageItem[]>;
   setConversations: (conversations: ConversationItem[]) => void;
 
-  // اکشن جدید برای تزریق پیام‌های دریافتی از سرور به استور
   setMessagesForConversation: (
     conversationId: string | number,
     newMessages: MessageItem[],
   ) => void;
 
-  // استیت و اکشن ریپلای
   replyingTo: MessageItem | null;
   setReplyingTo: (message: MessageItem | null) => void;
 
-  // اکشن‌های ارسال، ویرایش، حذف و فوروارد پیام
+  // Optimistic UI Actions
   sendMessage: (conversationId: string | number, text: string) => void;
   editMessage: (
     conversationId: string | number,
@@ -43,69 +42,20 @@ interface ChatStore {
     fromChatTitle: string,
   ) => void;
 
-  // اکشن‌های مدیریت گفتگوها و سایدبار
+  // Conversations Actions
   deleteConversation: (conversationId: string | number) => void;
-  receiveLiveMessage: (payload: any, currentUserId: number | string) => void;
   leaveConversation: (conversationId: string | number) => void;
   clearChat: (conversationId: string | number) => void;
   togglePinConversation: (conversationId: string | number) => void;
   toggleMuteConversation: (conversationId: string | number) => void;
   toggleUnreadConversation: (conversationId: string | number) => void;
   markAsRead: (conversationId: string | number) => void;
+
+  // Central Socket Event Router
+  receiveLiveMessage: (envelope: SocketEnvelope, currentUserId: number | string) => void;
 }
 
-const INITIAL_CONVERSATIONS: ConversationItem[] = [
-  // {
-  //   id: 1,
-  //   title: "پشتیبانی مرکزی رسالت",
-  //   type: "SUPPORT",
-  //   lastMessage: "سلام، برای پیگیری وضعیت درخواست وام سوال داشتم.",
-  //   lastMessageTime: "۱۲:۳۲",
-  //   unreadCount: 0,
-  //   isPinned: true,
-  //   isMuted: false,
-  //   isVerified: true,
-  //   isOnline: true,
-  // },
-  // {
-  //   id: 2,
-  //   title: "کانال اطلاع‌رسانی",
-  //   type: "CHANNEL",
-  //   lastMessage:
-  //     "🔒 توجه: به منظور ارتقای امنیت، لطفاً نسبت به فعال‌سازی تایید دو مرحله‌ای اقدام فرمایید.",
-  //   lastMessageTime: "۱۶:۱۰",
-  //   unreadCount: 40,
-  //   isPinned: true,
-  //   isMuted: true,
-  //   isVerified: true,
-  // },
-  // {
-  //   id: 3,
-  //   title: "گروه توسعه نرم‌افزار",
-  //   type: "GROUP",
-  //   lastMessage:
-  //     "علی: عالیه، اگر کامپوننت جدیدی نیاز بود بگید تا سریع اضافه کنم.",
-  //   lastMessageTime: "۰۹:۱۵",
-  //   unreadCount: 3,
-  //   isPinned: false,
-  //   isMuted: false,
-  // },
-  // {
-  //   id: 4,
-  //   title: "محمد رضایی",
-  //   type: "PERSONAL",
-  //   lastMessage: "ممنون، منتظرم.",
-  //   lastMessageTime: "۱۰:۱۷",
-  //   unreadCount: 0,
-  //   isPinned: false,
-  //   isMuted: false,
-  //   isOnline: true,
-  // },
-  //conversations: [],
-
-];
-conversations: [];
-export const useChatStore = create<ChatStore>((set) => ({
+export const useChatStore = create<ChatStore>((set, get) => ({
   activeTab: "ALL",
   setActiveTab: (tab) => set({ activeTab: tab }),
   searchQuery: "",
@@ -124,11 +74,9 @@ export const useChatStore = create<ChatStore>((set) => ({
         String(c.id) === String(conversationId) ? { ...c, unreadCount: 0 } : c,
       ),
     })),
+
   setConversations: (conversations) => set({ conversations }),
-
-  conversations: INITIAL_CONVERSATIONS,
-
-  // با شروع خالی کردنِ state، دیگر دیتای تست روی دیتای سرور رونویسی نمی‌شود
+  conversations: [],
   messages: {},
 
   setMessagesForConversation: (conversationId, newMessages) =>
@@ -175,7 +123,7 @@ export const useChatStore = create<ChatStore>((set) => ({
 
       const updatedConversations = state.conversations.map((c) =>
         String(c.id) === String(conversationId)
-          ? { ...c, lastMessage: text, lastMessageTime: timeNow }
+          ? { ...c, lastMessageText: text, lastMessageTime: timeNow }
           : c,
       );
 
@@ -189,70 +137,133 @@ export const useChatStore = create<ChatStore>((set) => ({
       };
     }),
 
-  receiveLiveMessage: (payload: any, currentUserId: number | string) => {
-    const conversationId = payload.conversationId || payload.chatId;
-    if (!conversationId) return;
+  /**
+   * Main Router for incoming STOMP messages.
+   * Dispatches to relevant logic based on `type`.
+   */
+  receiveLiveMessage: (envelope: SocketEnvelope, currentUserId: number | string) => {
+    if (!envelope || !envelope.type) return;
 
-    const isMe =
-      Number(payload.senderId || payload.userId) === Number(currentUserId);
+    const { type, content, isResponse } = envelope;
 
-    const newMsg: MessageItem = {
-      id: payload.id || Date.now(),
-      isOutgoing: isMe,
-      text: payload.content || payload.message || payload.text || "",
-      isMe,
-      createdAt: payload.createdAt
-        ? new Date(payload.createdAt).toLocaleTimeString("fa-IR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : new Date().toLocaleTimeString("fa-IR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-      status: "delivered",
-      replyToMessage: payload.replyRef
-        ? {
-            id: payload.replyRef.id,
-            text: payload.replyRef.content || payload.replyRef.text || "",
-            senderName: payload.replyRef.senderName || "",
+    switch (type.toUpperCase()) {
+      // 1. New incoming message
+      case "NEW_MESSAGE":
+      case "SEND_MESSAGE":
+      case "MESSAGE_SEND": {
+        const conversationId = content.conversationId || content.chatId;
+        if (!conversationId) return;
+
+        const isMe =
+          Number(content.senderId || content.userId) === Number(currentUserId);
+
+        // If it's an echo of a message we already sent, skip adding a duplicate
+        if (isMe && isResponse) {
+          return;
+        }
+
+        const newMsg: MessageItem = {
+          id: content.id || content.messageId || Date.now(),
+          conversationId,
+          isOutgoing: isMe,
+          isMe,
+          text: content.text || content.content || "",
+          createdAt: content.createdAt
+            ? new Date(content.createdAt).toLocaleTimeString("fa-IR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : new Date().toLocaleTimeString("fa-IR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+          status: "delivered",
+          replyRefMessageId: content.replyRef?.id || content.replyRefMessageId,
+          replyToMessage: content.replyRef
+            ? {
+                id: content.replyRef.id,
+                text: content.replyRef.text || content.replyRef.content || "",
+                senderName: content.replyRef.senderName || "",
+              }
+            : undefined,
+        };
+
+        set((state) => {
+          const currentList =
+            state.messages[conversationId] ||
+            state.messages[String(conversationId)] ||
+            [];
+
+          if (currentList.some((m) => String(m.id) === String(newMsg.id))) {
+            return state;
           }
-        : undefined,
-    };
 
-    set((state) => {
-      const currentList = state.messages[conversationId] || [];
-      // جلوگیری از ثبت پیام تکراری
-      if (currentList.some((m) => m.id === newMsg.id)) {
-        return state;
+          const isCurrentActive =
+            String(state.activeConversationId) === String(conversationId);
+
+          const updatedConversations = state.conversations.map((c) => {
+            if (String(c.id) === String(conversationId)) {
+              return {
+                ...c,
+                lastMessageText: newMsg.text,
+                lastMessageTime: newMsg.createdAt,
+                unreadCount:
+                  isCurrentActive || isMe
+                    ? c.unreadCount
+                    : (c.unreadCount || 0) + 1,
+              };
+            }
+            return c;
+          });
+
+          return {
+            messages: {
+              ...state.messages,
+              [conversationId]: [...currentList, newMsg],
+            },
+            conversations: updatedConversations,
+          };
+        });
+        break;
       }
 
-      const updatedMessages = [...currentList, newMsg];
-      const isCurrentActive = state.activeConversationId === conversationId;
-
-      const updatedConversations = state.conversations.map((c) => {
-        if (String(c.id) === String(conversationId)) {
-          return {
-            ...c,
-            lastMessage: newMsg.text,
-            lastMessageTime: newMsg.createdAt,
-            unreadCount:
-              isCurrentActive || isMe
-                ? c.unreadCount
-                : (c.unreadCount || 0) + 1,
-          };
+      // 2. Edit existing message
+      case "EDIT_MESSAGE":
+      case "MESSAGE_EDIT": {
+        const conversationId = content.conversationId || content.chatId;
+        const messageId = content.id || content.messageId;
+        const newText = content.text || content.content || "";
+        if (conversationId && messageId) {
+          get().editMessage(conversationId, messageId, newText);
         }
-        return c;
-      });
+        break;
+      }
 
-      return {
-        messages: {
-          ...state.messages,
-          [conversationId]: updatedMessages,
-        },
-        conversations: updatedConversations,
-      };
-    });
+      // 3. Delete message
+      case "DELETE_MESSAGE":
+      case "MESSAGE_DELETE": {
+        const conversationId = content.conversationId || content.chatId;
+        const messageId = content.id || content.messageId;
+        if (conversationId && messageId) {
+          get().deleteMessage(conversationId, messageId);
+        }
+        break;
+      }
+
+      // 4. Conversation / User removed or left
+      case "DELETE_CONVERSATION":
+      case "LEAVE_CONVERSATION": {
+        const conversationId = content.conversationId || content.id;
+        if (conversationId) {
+          get().deleteConversation(conversationId);
+        }
+        break;
+      }
+
+      default:
+        console.log(`[Socket Envelope]: Unhandled type '${type}'`, content);
+        break;
+    }
   },
 
   deleteConversation: (conversationId) =>
@@ -304,7 +315,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         },
         conversations: state.conversations.map((c) =>
           String(c.id) === idStr
-            ? { ...c, lastMessage: "", lastMessageTime: "" }
+            ? { ...c, lastMessageText: "", lastMessageTime: "" }
             : c,
         ),
       };
@@ -330,7 +341,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         ) {
           return {
             ...c,
-            lastMessage: newText,
+            lastMessageText: newText,
           };
         }
         return c;
@@ -360,7 +371,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         if (String(c.id) === String(conversationId)) {
           return {
             ...c,
-            lastMessage: lastMsg ? lastMsg.text : "",
+            lastMessageText: lastMsg ? lastMsg.text : "",
             lastMessageTime: lastMsg ? lastMsg.createdAt : "",
           };
         }
@@ -408,7 +419,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         [];
       const updatedConversations = state.conversations.map((c) =>
         String(c.id) === String(targetConversationId)
-          ? { ...c, lastMessage: message.text, lastMessageTime: timeNow }
+          ? { ...c, lastMessageText: message.text, lastMessageTime: timeNow }
           : c,
       );
 

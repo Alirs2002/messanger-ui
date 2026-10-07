@@ -1,28 +1,25 @@
 import { useEffect, useRef } from "react";
-import { stompService } from "../services/stompService";
 import { authStorage } from "../services/auth";
+import { stompService } from "../services/stompService";
 import { useChatStore } from "../store/useChatStore";
 
-export function useChatSocket() {
-  const receiveLiveMessage = useChatStore((s) => s.receiveLiveMessage);
+export const useChatSocket = () => {
+  const receiveLiveMessage = useChatStore((state) => state.receiveLiveMessage);
   const connectedRef = useRef(false);
 
   useEffect(() => {
-    const token = authStorage.getToken();
-    const userId = authStorage.getUserId();
+    const currentUserId = authStorage.getUserUuid() || authStorage.getUserId();
 
-    if (!token || !userId) {
-      console.warn(
-        "[useChatSocket] missing token or userId — socket not started",
-      );
+    if (!currentUserId) {
+      console.warn("[useChatSocket] Missing currentUserId in authStorage.");
       return;
     }
 
     if (connectedRef.current) return;
     connectedRef.current = true;
 
-    stompService.connect(token, userId, (payload) => {
-      receiveLiveMessage(payload, userId);
+    stompService.connect((envelope) => {
+      receiveLiveMessage(envelope, currentUserId);
     });
 
     return () => {
@@ -30,4 +27,4 @@ export function useChatSocket() {
       connectedRef.current = false;
     };
   }, [receiveLiveMessage]);
-}
+};
