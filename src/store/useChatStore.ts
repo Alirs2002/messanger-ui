@@ -150,7 +150,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // 1. New incoming message
       case "NEW_MESSAGE":
       case "SEND_MESSAGE":
-      case "MESSAGE_SEND": {
+      case "MESSAGE_SEND": 
+      case 'MESSAGE.SEND':{
         const conversationId = content.conversationId || content.chatId;
         if (!conversationId) return;
 
@@ -177,6 +178,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 hour: "2-digit",
                 minute: "2-digit",
               }),
+          senderName: content.senderName || content.authorNickname || content.senderUsername || "",       // ← add
           status: "delivered",
           replyRefMessageId: content.replyRef?.id || content.replyRefMessageId,
           replyToMessage: content.replyRef
@@ -204,14 +206,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const updatedConversations = state.conversations.map((c) => {
             if (String(c.id) === String(conversationId)) {
               return {
-                ...c,
-                lastMessageText: newMsg.text,
-                lastMessageTime: newMsg.createdAt,
-                unreadCount:
-                  isCurrentActive || isMe
-                    ? c.unreadCount
-                    : (c.unreadCount || 0) + 1,
-              };
+              ...c,
+              lastMessageText: newMsg.text,
+              lastMessageTime: content.createdAt || new Date().toISOString(), // ← was: newMsg.createdAt
+              unreadCount:
+                isCurrentActive || isMe
+                  ? c.unreadCount
+                  : (c.unreadCount || 0) + 1,
+            };
             }
             return c;
           });
@@ -249,6 +251,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
         break;
       }
+      
 
       // 4. Conversation / User removed or left
       case "DELETE_CONVERSATION":
@@ -259,6 +262,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
         break;
       }
+      
 
       default:
         console.log(`[Socket Envelope]: Unhandled type '${type}'`, content);

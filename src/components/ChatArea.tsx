@@ -573,11 +573,13 @@ export const ChatArea: React.FC = () => {
       []
     : [];
 
-  const optimisticOnly = localMessages.filter(
-    (m) =>
-      (m.status === "sending" || m.isMe) &&
-      !mappedApiMessages.some((api) => String(api.id) === String(m.id)),
-  );
+//  const optimisticOnly = localMessages.filter(
+//   (msg) => !apiMessages.some((api) => api.id === msg.id)
+// );
+
+const optimisticOnly = localMessages.filter(
+  (m) => !mappedApiMessages.some((api) => String(api.id) === String(m.id))
+);
 
   const currentMessages: MessageItem[] = [
     ...mappedApiMessages,

@@ -16,7 +16,7 @@ export default defineConfig({
         ws: true,
         secure: false,
         headers: {
-          Origin: 'https://api.mresalat.ir', // این هدر جلوی 403 را در لایه Handshake می‌گیرد
+          Origin: 'https://api.mresalat.ir', 
         },
       },
     },
