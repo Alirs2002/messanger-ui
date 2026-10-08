@@ -6,6 +6,8 @@ import type {
   SocketEnvelope,
 } from "../types/chat";
 import { authStorage } from "../services/auth";
+import { messagesApi } from "../services/apiService";
+import { stompService } from "../services/stompService";
 
 interface ChatStore {
   activeTab: ConversationType;
@@ -93,53 +95,153 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   replyingTo: null,
   setReplyingTo: (message) => set({ replyingTo: message }),
+  // sendMessage: async (conversationId: string | number, text: string) => {
+  //   const trimmed = text.trim();
+  //   if (!trimmed) return;
 
-  sendMessage: (conversationId, text) =>
-    set((state) => {
-      const timeNow = new Date().toLocaleTimeString("fa-IR", {
+  //   const replyingTo = get().replyingTo;
+  //   const tempId = `temp-${Date.now()}`;
+
+  //   // ۱. آپدیت فوری لوکال (Optimistic Update)
+  //   // ۱. آپدیت فوری لوکال
+  //   const optimisticMessage: MessageItem = {
+  //     id: Date.now(),
+  //     text: trimmed,
+  //     createdAt: new Date().toISOString(),
+  //     timestamp: new Date().toLocaleTimeString([], {
+  //       hour: "2-digit",
+  //       minute: "2-digit",
+  //     }),
+  //     isOutgoing: true,
+  //     status: "sending",
+  //     replyToMessage: replyingTo
+  //       ? {
+  //           id: replyingTo.id,
+  //           senderName: replyingTo.senderName,
+  //           text: replyingTo.text,
+  //         }
+  //       : null,
+  //   };
+
+  //   set((state) => {
+  //     const convMessages = state.messages[conversationId] || [];
+  //     return {
+  //       messages: {
+  //         ...state.messages,
+  //         [conversationId]: [...convMessages, optimisticMessage],
+  //       },
+  //       replyingTo: null,
+  //     };
+  //   });
+
+  //   // ۲. ارسال پیام با POST به سرور
+  //   try {
+  //     const payload = {
+  //       tempId: tempId,
+  //       text: trimmed,
+  //       encodedText: "",
+  //       attachment: { id: "", url: "" },
+  //       attachmentThumbnail: { id: "", url: "" },
+  //       albums: [],
+  //       albumsThumbnail: [],
+  //       albumsTypes: [],
+  //       extra: "",
+  //       forwarderId: "",
+  //       forwarderNickname: "",
+  //       replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
+  //       replyRefMessageText: replyingTo ? replyingTo.text : "",
+  //       replyRefUserId: "",
+  //       replyRefUserNickname: replyingTo ? replyingTo.senderName : "",
+  //       replyRefMessageType: "",
+  //       replyRefUserAvatarThumbnail: { id: "", url: "" },
+  //       messageState: "SENT",
+  //       opponentIds: [],
+  //       messageType: "TEXT",
+  //     };
+
+  //     await messagesApi.sendMessage(conversationId, payload);
+  //   } catch (error) {
+  //     console.error("Failed to send message to server:", error);
+  //     // در صورت نیاز می‌تونی وضعیت پیام رو به failed تغییر بدی
+  //   }
+  // },
+  sendMessage: (conversationId: string | number, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    const replyingTo = get().replyingTo;
+    const tempId = `temp-${Date.now()}`;
+
+    // ۱. آپدیت فوری لوکال (Optimistic UI)
+    const optimisticMessage: MessageItem = {
+      id: tempId, // <--- به جای Date.now() قرار دهید تا با tempId پیلود یکی باشد
+      conversationId: conversationId,
+      text: trimmed,
+      createdAt: new Date().toLocaleTimeString("fa-IR", {
         hour: "2-digit",
         minute: "2-digit",
-      });
+      }),
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      isOutgoing: true,
+      status: "sending",
+      replyToMessage: replyingTo
+        ? {
+            id: replyingTo.id,
+            senderName: replyingTo.senderName,
+            text: replyingTo.text,
+          }
+        : null,
+    };
 
-      const newMsg: MessageItem = {
-        id: Date.now(),
-        conversationId,
-        senderId: 1,
-        text,
-        createdAt: timeNow,
-        isOutgoing: true,
-        status: "sent",
-        replyRefMessageId: state.replyingTo ? state.replyingTo.id : undefined,
-        replyToMessage: state.replyingTo
-          ? {
-              id: state.replyingTo.id,
-              text: state.replyingTo.text,
-              senderName: state.replyingTo.senderName,
-              isOutgoing: state.replyingTo.isOutgoing,
-            }
-          : undefined,
-      };
-
-      const currentMsgs =
+    set((state) => {
+      const convMessages =
         state.messages[conversationId] ||
         state.messages[String(conversationId)] ||
         [];
-
-      const updatedConversations = state.conversations.map((c) =>
-        String(c.id) === String(conversationId)
-          ? { ...c, lastMessageText: text, lastMessageTime: timeNow }
-          : c,
-      );
-
       return {
         messages: {
           ...state.messages,
-          [conversationId]: [...currentMsgs, newMsg],
+          [conversationId]: [...convMessages, optimisticMessage],
         },
-        conversations: updatedConversations,
         replyingTo: null,
       };
-    }),
+    });
+
+    // ۲. پیلود کامل پیام
+    const payload = {
+      tempId: tempId,
+      conversationId: conversationId,
+      text: trimmed,
+      encodedText: "",
+      attachment: { id: "", url: "" },
+      attachmentThumbnail: { id: "", url: "" },
+      albums: [],
+      albumsThumbnail: [],
+      albumsTypes: [],
+      extra: "",
+      forwarderId: "",
+      forwarderNickname: "",
+      replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
+      replyRefMessageText: replyingTo ? replyingTo.text : "",
+      replyRefUserId: "",
+      replyRefUserNickname: replyingTo ? replyingTo.senderName : "",
+      replyRefMessageType: "",
+      replyRefUserAvatarThumbnail: { id: "", url: "" },
+      messageState: "SENT",
+      opponentIds: [],
+      messageType: "TEXT",
+    };
+
+    const destination = "message.send";
+    const success = stompService.sendMessage(destination, payload);
+
+    if (!success) {
+      console.error("Failed to publish message via STOMP broker.");
+    }
+  },
 
   /**
    * Main Router for incoming STOMP messages.
@@ -159,14 +261,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case "SEND_MESSAGE":
       case "MESSAGE_SEND":
       case "MESSAGE.SEND": {
-        // ۱. پیدا کردن Conversation ID اصلی از دیتای سوکت
         const receivedConversationId = content.conversationId || content.chatId;
 
-        // ۲. تلاش برای پیدا کردن چت معادل از استیت
-        // گاهی سوکت uuid می‌دهد ولی استیت بر اساس targetId کاربر ذخیره شده است (یا بالعکس)
-        // 2. پیدا کردن چت معادل از استیت
         const matchedConversation = get().conversations.find((c) => {
-          // ما فقط بررسی می‌کنیم که id چت در استیت با id یا targetId سوکت مچ شود
           return (
             String(c.id) === String(receivedConversationId) ||
             String(c.id) === String(content.targetId) ||
@@ -174,7 +271,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           );
         });
 
-        // اگر چتی پیدا کردیم، کلید آن را برمی‌داریم که دقیقاً با کلیدی که ChatArea روی آن قرار دارد یکی شود
         const conversationId = matchedConversation
           ? matchedConversation.id
           : receivedConversationId;
@@ -186,13 +282,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const currentUserUuid = authStorage.getUserUuid();
         const isMe = String(actualSenderId) === String(currentUserUuid);
 
-        // توجه: این شرط باید کامنت بماند تا پیام‌های ارسالی خودمان در صفحه ظاهر شوند
-        // if (isMe && isResponse) {
-        //   return;
-        // }
+        const realMessageId = content.id || content.messageId;
+        const returnedTempId = content.tempId;
 
         const newMsg: MessageItem = {
-          id: content.id || content.messageId || content.tempId || Date.now(),
+          id: realMessageId || returnedTempId || Date.now(),
           conversationId: conversationId,
           senderId: actualSenderId || null,
           isOutgoing: isMe,
@@ -210,14 +304,35 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         };
 
         set((state) => {
-          // ذخیره با کلید conversationId پیدا شده که با کامپوننت ChatArea همخوانی دارد
           const currentList =
             state.messages[conversationId] ||
             state.messages[String(conversationId)] ||
             [];
 
-          if (currentList.some((m) => String(m.id) === String(newMsg.id))) {
-            return state;
+          // ۱. جستجوی پیام موقت قبلی با tempId یا شناسه موقت
+          const existingPendingIndex = currentList.findIndex((m) => {
+            if (returnedTempId && String(m.id) === String(returnedTempId))
+              return true;
+            // در صورتی که پیام از قبل با realMessageId ثبت شده باشد
+            if (realMessageId && String(m.id) === String(realMessageId))
+              return true;
+            return false;
+          });
+
+          let updatedList: MessageItem[];
+
+          if (existingPendingIndex !== -1) {
+            // جایگزینی پیام موقت با پیام تایید شده از سرور
+            updatedList = [...currentList];
+            updatedList[existingPendingIndex] = {
+              ...updatedList[existingPendingIndex],
+              ...newMsg,
+              id: realMessageId || updatedList[existingPendingIndex].id,
+              status: "delivered",
+            };
+          } else {
+            // پیام جدید است (پیام دریافتی از طرف مقابل یا پیامی که در استیت نبوده)
+            updatedList = [...currentList, newMsg];
           }
 
           const updatedConversations = state.conversations.map((c) => {
@@ -238,7 +353,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           return {
             messages: {
               ...state.messages,
-              [conversationId]: [...currentList, newMsg],
+              [conversationId]: updatedList,
             },
             conversations: updatedConversations,
           };

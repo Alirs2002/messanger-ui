@@ -227,6 +227,29 @@ export const conversationsApi = {
   },
 };
 
+export interface SendMessagePayload {
+  tempId?: string;
+  text: string;
+  encodedText?: string;
+  attachment?: { id: string; url: string };
+  attachmentThumbnail?: { id: string; url: string };
+  albums?: any[];
+  albumsThumbnail?: any[];
+  albumsTypes?: any[];
+  extra?: string;
+  forwarderId?: string;
+  forwarderNickname?: string;
+  replyRefMessageId?: string;
+  replyRefMessageText?: string;
+  replyRefUserId?: string;
+  replyRefUserNickname?: string;
+  replyRefMessageType?: string;
+  replyRefUserAvatarThumbnail?: { id: string; url: string };
+  messageState?: string;
+  opponentIds?: string[];
+  messageType?: string;
+}
+
 export const messagesApi = {
   async getConversationDetail(
     conversationId: string,
@@ -241,6 +264,15 @@ export const messagesApi = {
     return apiFetch<ConversationDetail>(
       `/messages/${conversationId}?${query.toString()}`,
     );
+  },
+  sendMessage: async (
+    conversationId: string | number,
+    payload: SendMessagePayload,
+  ) => {
+    return apiFetch(`/messages/send/${conversationId}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
 
   async getNextPage(

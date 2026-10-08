@@ -24,13 +24,15 @@ class StompService {
     }
 
     //const brokerURL = "wss://api.mresalat.ir/messenger/websocket";
-// در محیط لوکال/توسعه به سرور Vite وصل شود، در پروداکشن به سرور اصلی
-const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // در محیط لوکال/توسعه به سرور Vite وصل شود، در پروداکشن به سرور اصلی
+    const isDev =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 
-const brokerURL = isDev
-  ? `${wsProtocol}//${window.location.host}/messenger/websocket`
-  : "wss://api.mresalat.ir/messenger/websocket";
+    const brokerURL = isDev
+      ? `${wsProtocol}//${window.location.host}/messenger/websocket`
+      : "wss://api.mresalat.ir/messenger/websocket";
 
     this.client = new Client({
       brokerURL,
@@ -57,7 +59,11 @@ const brokerURL = isDev
         });
       },
       onStompError: (frame) => {
-        console.error("[STOMP] Broker error:", frame.headers["message"], frame.body);
+        console.error(
+          "[STOMP] Broker error:",
+          frame.headers["message"],
+          frame.body,
+        );
       },
       onWebSocketClose: () => {
         console.log("[STOMP] WebSocket closed");
@@ -81,6 +87,23 @@ const brokerURL = isDev
 
   isConnected(): boolean {
     return !!this.client?.active;
+  }
+  sendMessage(destination: string, payload: any): boolean {
+    if (!this.client || !this.client.active) {
+      console.warn("STOMP client is not active/connected");
+      return false;
+    }
+
+    try {
+      this.client.publish({
+        destination,
+        body: JSON.stringify(payload),
+      });
+      return true;
+    } catch (err) {
+      console.error("Error publishing STOMP message:", err);
+      return false;
+    }
   }
 }
 
