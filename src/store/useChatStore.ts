@@ -7,7 +7,6 @@ import type {
 } from "../types/chat";
 import { authStorage } from "../services/auth";
 
-
 interface ChatStore {
   activeTab: ConversationType;
   setActiveTab: (tab: ConversationType) => void;
@@ -54,7 +53,10 @@ interface ChatStore {
   markAsRead: (conversationId: string | number) => void;
 
   // Central Socket Event Router
-  receiveLiveMessage: (envelope: SocketEnvelope, currentUserId: number | string) => void;
+  receiveLiveMessage: (
+    envelope: SocketEnvelope,
+    currentUserId: number | string,
+  ) => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -143,7 +145,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
    * Main Router for incoming STOMP messages.
    * Dispatches to relevant logic based on `type`.
    */
-  receiveLiveMessage: (envelope: SocketEnvelope, currentUserId: number | string) => {
+  receiveLiveMessage: (
+    envelope: SocketEnvelope,
+    currentUserId: number | string,
+  ) => {
     if (!envelope || !envelope.type) return;
 
     const { type, content, isResponse } = envelope;
@@ -152,81 +157,60 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // 1. New incoming message
       case "NEW_MESSAGE":
       case "SEND_MESSAGE":
-      case "MESSAGE_SEND": 
-      case 'MESSAGE.SEND':{
-        const conversationId = content.conversationId || content.chatId;
+      case "MESSAGE_SEND":
+      case "MESSAGE.SEND": {
+        // ۱. پیدا کردن Conversation ID اصلی از دیتای سوکت
+        const receivedConversationId = content.conversationId || content.chatId;
+
+        // ۲. تلاش برای پیدا کردن چت معادل از استیت
+        // گاهی سوکت uuid می‌دهد ولی استیت بر اساس targetId کاربر ذخیره شده است (یا بالعکس)
+        // 2. پیدا کردن چت معادل از استیت
+        const matchedConversation = get().conversations.find((c) => {
+          // ما فقط بررسی می‌کنیم که id چت در استیت با id یا targetId سوکت مچ شود
+          return (
+            String(c.id) === String(receivedConversationId) ||
+            String(c.id) === String(content.targetId) ||
+            String(c.id) === String(content.chatId)
+          );
+        });
+
+        // اگر چتی پیدا کردیم، کلید آن را برمی‌داریم که دقیقاً با کلیدی که ChatArea روی آن قرار دارد یکی شود
+        const conversationId = matchedConversation
+          ? matchedConversation.id
+          : receivedConversationId;
+
         if (!conversationId) return;
 
-        const isMe =
-          Number(content.senderId || content.userId) === Number(currentUserId);
-  //         const isMe =
-  // (content.authorUserId || content.senderId || content.userId) === currentUserId;
+        const actualSenderId =
+          content.authorUserId || content.senderId || content.userId;
+        const currentUserUuid = authStorage.getUserUuid();
+        const isMe = String(actualSenderId) === String(currentUserUuid);
 
-        // If it's an echo of a message we already sent, skip adding a duplicate
-        if (isMe && isResponse) {
-          return;
-        }
-console.log("Socket message content keys:", Object.keys(content));
-console.log("Socket message content:", content);
-const currentUserUuid = authStorage.getUserUuid();
-   const newMsg: MessageItem = {
-  id: content.id || content.messageId || Date.now(),
-  conversationId,
-  senderId: content.senderId || content.authorUserId || content.userId || null,
-  isOutgoing: isMe,
-  isMe,
-  text: content.text || content.content || "",
-  createdAt: (() => {
-    const raw =
-      content.createdAt ||
-      content.timestamp ||
-      content.sentAt ||
-      content.time ||
-      content.date ||
-      content.createdDate;
-    if (!raw) {
-      return new Date().toLocaleTimeString("fa-IR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
-    const d = new Date(raw);
-    return isNaN(d.getTime())
-      ? new Date().toLocaleTimeString("fa-IR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
-  })(),
-  senderName:
-    content.senderName ||
-    content.authorNickname ||
-    content.senderUsername ||
-    "",
-  status: "delivered",
-  replyToId:
-    content.replyRef?.id ??
-    content.replyRefMessageId ??
-    content.replyToMessageId ??
-    null,
-  forwardFrom: null,
-  replyRefMessageId: content.replyRef?.id || content.replyRefMessageId,
-  replyToMessage: content.replyRef
-    ? {
-        id: content.replyRef.id,
-        text: content.replyRef.text || content.replyRef.content || "",
-        senderName: content.replyRef.senderName || "",
-        isOutgoing:
-          (content.replyRef.senderId ||
-            content.replyRef.authorUserId ||
-            content.replyRef.userId) === currentUserUuid,
-      }
-    : undefined,
-};
+        // توجه: این شرط باید کامنت بماند تا پیام‌های ارسالی خودمان در صفحه ظاهر شوند
+        // if (isMe && isResponse) {
+        //   return;
+        // }
 
-
+        const newMsg: MessageItem = {
+          id: content.id || content.messageId || content.tempId || Date.now(),
+          conversationId: conversationId,
+          senderId: actualSenderId || null,
+          isOutgoing: isMe,
+          isMe,
+          text: content.text || content.content || "",
+          createdAt: new Date().toLocaleTimeString("fa-IR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          senderName: content.senderName || content.authorNickname || "",
+          status: "delivered",
+          replyToId: content.replyRef?.id ?? content.replyRefMessageId ?? null,
+          forwardFrom: null,
+          replyRefMessageId: content.replyRef?.id || content.replyRefMessageId,
+        };
 
         set((state) => {
+          // ذخیره با کلید conversationId پیدا شده که با کامپوننت ChatArea همخوانی دارد
           const currentList =
             state.messages[conversationId] ||
             state.messages[String(conversationId)] ||
@@ -236,20 +220,17 @@ const currentUserUuid = authStorage.getUserUuid();
             return state;
           }
 
-          const isCurrentActive =
-            String(state.activeConversationId) === String(conversationId);
-
           const updatedConversations = state.conversations.map((c) => {
             if (String(c.id) === String(conversationId)) {
               return {
-              ...c,
-              lastMessageText: newMsg.text,
-              lastMessageTime: content.createdAt || new Date().toISOString(), // ← was: newMsg.createdAt
-              unreadCount:
-                isCurrentActive || isMe
-                  ? c.unreadCount
-                  : (c.unreadCount || 0) + 1,
-            };
+                ...c,
+                lastMessageText: newMsg.text,
+                unreadCount:
+                  String(state.activeConversationId) ===
+                    String(conversationId) || isMe
+                    ? c.unreadCount
+                    : (c.unreadCount || 0) + 1,
+              };
             }
             return c;
           });
@@ -287,7 +268,6 @@ const currentUserUuid = authStorage.getUserUuid();
         }
         break;
       }
-      
 
       // 4. Conversation / User removed or left
       case "DELETE_CONVERSATION":
@@ -298,7 +278,6 @@ const currentUserUuid = authStorage.getUserUuid();
         }
         break;
       }
-      
 
       default:
         console.log(`[Socket Envelope]: Unhandled type '${type}'`, content);
