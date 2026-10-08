@@ -5,7 +5,7 @@ import type {
   Message as BackendMessage,
   PersianDate,
 } from "../types/messenger";
-
+import axios from "axios";
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/messenger/api";
 
 // ─── Generic fetch wrapper ───────────────────────────────────────────────────
@@ -15,10 +15,10 @@ async function apiFetch<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const storageToken = authStorage.getToken();
-  const token =
-    storageToken ||
-    "GAPGPTMASKTOKENuq7y3hbaa08X1X" ||
-    "GAPGPTMASKTOKENp08bvq1jf4X0X";
+  // توکن معتبر کپی شده از تب نتورک سیستم اصلی
+  const token = storageToken || "eyJhbGciOi...";
+
+  console.log("Using Token:", token); // چک کن که توکن چاپ بشه
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -30,6 +30,7 @@ async function apiFetch<T>(
   }
 
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  // ...
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -265,16 +266,16 @@ export const messagesApi = {
       `/messages/${conversationId}?${query.toString()}`,
     );
   },
+
   sendMessage: async (
-    conversationId: string | number,
-    payload: SendMessagePayload,
-  ) => {
+    conversationId: string,
+    messagePayload: any,
+  ): Promise<any> => {
     return apiFetch(`/messages/send/${conversationId}`, {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(messagePayload),
     });
   },
-
   async getNextPage(
     conversationId: string,
     pageNo: number,

@@ -7,7 +7,7 @@ import type {
 } from "../types/chat";
 import { authStorage } from "../services/auth";
 import { messagesApi } from "../services/apiService";
-import { stompService } from "../services/stompService";
+import { v4 as uuidv4 } from "uuid";
 
 interface ChatStore {
   activeTab: ConversationType;
@@ -95,92 +95,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   replyingTo: null,
   setReplyingTo: (message) => set({ replyingTo: message }),
-  // sendMessage: async (conversationId: string | number, text: string) => {
-  //   const trimmed = text.trim();
-  //   if (!trimmed) return;
 
-  //   const replyingTo = get().replyingTo;
-  //   const tempId = `temp-${Date.now()}`;
-
-  //   // ۱. آپدیت فوری لوکال (Optimistic Update)
-  //   // ۱. آپدیت فوری لوکال
-  //   const optimisticMessage: MessageItem = {
-  //     id: Date.now(),
-  //     text: trimmed,
-  //     createdAt: new Date().toISOString(),
-  //     timestamp: new Date().toLocaleTimeString([], {
-  //       hour: "2-digit",
-  //       minute: "2-digit",
-  //     }),
-  //     isOutgoing: true,
-  //     status: "sending",
-  //     replyToMessage: replyingTo
-  //       ? {
-  //           id: replyingTo.id,
-  //           senderName: replyingTo.senderName,
-  //           text: replyingTo.text,
-  //         }
-  //       : null,
-  //   };
-
-  //   set((state) => {
-  //     const convMessages = state.messages[conversationId] || [];
-  //     return {
-  //       messages: {
-  //         ...state.messages,
-  //         [conversationId]: [...convMessages, optimisticMessage],
-  //       },
-  //       replyingTo: null,
-  //     };
-  //   });
-
-  //   // ۲. ارسال پیام با POST به سرور
-  //   try {
-  //     const payload = {
-  //       tempId: tempId,
-  //       text: trimmed,
-  //       encodedText: "",
-  //       attachment: { id: "", url: "" },
-  //       attachmentThumbnail: { id: "", url: "" },
-  //       albums: [],
-  //       albumsThumbnail: [],
-  //       albumsTypes: [],
-  //       extra: "",
-  //       forwarderId: "",
-  //       forwarderNickname: "",
-  //       replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
-  //       replyRefMessageText: replyingTo ? replyingTo.text : "",
-  //       replyRefUserId: "",
-  //       replyRefUserNickname: replyingTo ? replyingTo.senderName : "",
-  //       replyRefMessageType: "",
-  //       replyRefUserAvatarThumbnail: { id: "", url: "" },
-  //       messageState: "SENT",
-  //       opponentIds: [],
-  //       messageType: "TEXT",
-  //     };
-
-  //     await messagesApi.sendMessage(conversationId, payload);
-  //   } catch (error) {
-  //     console.error("Failed to send message to server:", error);
-  //     // در صورت نیاز می‌تونی وضعیت پیام رو به failed تغییر بدی
-  //   }
-  // },
-  sendMessage: (conversationId: string | number, text: string) => {
+  sendMessage: async (conversationId: string | number, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
     const replyingTo = get().replyingTo;
-    const tempId = `temp-${Date.now()}`;
+    const tempId = uuidv4();
 
     // ۱. آپدیت فوری لوکال (Optimistic UI)
     const optimisticMessage: MessageItem = {
-      id: tempId, // <--- به جای Date.now() قرار دهید تا با tempId پیلود یکی باشد
+      id: tempId,
       conversationId: conversationId,
       text: trimmed,
-      createdAt: new Date().toLocaleTimeString("fa-IR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      createdAt: new Date().toISOString(), // بهتر است استاندارد ذخیره شود، فرمت نمایش سمت کامپوننت انجام شود
       timestamp: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -189,8 +117,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       status: "sending",
       replyToMessage: replyingTo
         ? {
-            id: replyingTo.id,
-            senderName: replyingTo.senderName,
+            id: String(replyingTo.id),
+            senderName: replyingTo.senderName || "",
             text: replyingTo.text,
           }
         : null,
@@ -213,7 +141,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     // ۲. پیلود کامل پیام
     const payload = {
       tempId: tempId,
-      conversationId: conversationId,
+      conversationId: String(conversationId),
       text: trimmed,
       encodedText: "",
       attachment: { id: "", url: "" },
@@ -227,7 +155,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
       replyRefMessageText: replyingTo ? replyingTo.text : "",
       replyRefUserId: "",
-      replyRefUserNickname: replyingTo ? replyingTo.senderName : "",
+      replyRefUserNickname: replyingTo ? replyingTo.senderName || "" : "",
       replyRefMessageType: "",
       replyRefUserAvatarThumbnail: { id: "", url: "" },
       messageState: "SENT",
@@ -235,11 +163,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       messageType: "TEXT",
     };
 
-    const destination = "message.send";
-    const success = stompService.sendMessage(destination, payload);
-
-    if (!success) {
-      console.error("Failed to publish message via STOMP broker.");
+    // ۳. ارسال پیام از طریق HTTP POST
+    try {
+      await messagesApi.sendMessage(String(conversationId), payload);
+      // تغییر وضعیت از sending به sent
+      set((state) => {
+        const msgs = state.messages[conversationId] || [];
+        return {
+          messages: {
+            ...state.messages,
+            [conversationId]: msgs.map((m: MessageItem) =>
+              m.id === tempId ? { ...m, status: "sent" as const } : m,
+            ),
+          },
+        };
+      });
+    } catch (error) {
+      console.error("Failed to send message via REST API:", error);
     }
   },
 
@@ -253,7 +193,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   ) => {
     if (!envelope || !envelope.type) return;
 
-    const { type, content, isResponse } = envelope;
+    const { type, content } = envelope;
 
     switch (type.toUpperCase()) {
       // 1. New incoming message
@@ -261,13 +201,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case "SEND_MESSAGE":
       case "MESSAGE_SEND":
       case "MESSAGE.SEND": {
-        const receivedConversationId = content.conversationId || content.chatId;
+        // تایپ کانتنت را به نوع `any` می‌گیریم تا بتوانیم فیلدهای داینامیک سرور را چک کنیم
+        const msgContent = content as any;
+        const receivedConversationId =
+          msgContent.conversationId || msgContent.chatId;
 
         const matchedConversation = get().conversations.find((c) => {
           return (
             String(c.id) === String(receivedConversationId) ||
-            String(c.id) === String(content.targetId) ||
-            String(c.id) === String(content.chatId)
+            String(c.id) === String(msgContent.targetId) ||
+            String(c.id) === String(msgContent.chatId)
           );
         });
 
@@ -278,12 +221,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         if (!conversationId) return;
 
         const actualSenderId =
-          content.authorUserId || content.senderId || content.userId;
+          msgContent.authorUserId || msgContent.senderId || msgContent.userId;
         const currentUserUuid = authStorage.getUserUuid();
         const isMe = String(actualSenderId) === String(currentUserUuid);
 
-        const realMessageId = content.id || content.messageId;
-        const returnedTempId = content.tempId;
+        const realMessageId = msgContent.id || msgContent.messageId;
+        const returnedTempId = msgContent.tempId;
 
         const newMsg: MessageItem = {
           id: realMessageId || returnedTempId || Date.now(),
@@ -291,16 +234,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           senderId: actualSenderId || null,
           isOutgoing: isMe,
           isMe,
-          text: content.text || content.content || "",
-          createdAt: new Date().toLocaleTimeString("fa-IR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          senderName: content.senderName || content.authorNickname || "",
+          text: msgContent.text || msgContent.content || "",
+          createdAt: new Date().toISOString(),
+          senderName: msgContent.senderName || msgContent.authorNickname || "",
           status: "delivered",
-          replyToId: content.replyRef?.id ?? content.replyRefMessageId ?? null,
+          replyToId:
+            msgContent.replyRef?.id ?? msgContent.replyRefMessageId ?? null,
           forwardFrom: null,
-          replyRefMessageId: content.replyRef?.id || content.replyRefMessageId,
+          replyRefMessageId:
+            msgContent.replyRef?.id || msgContent.replyRefMessageId,
         };
 
         set((state) => {
@@ -309,11 +251,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             state.messages[String(conversationId)] ||
             [];
 
-          // ۱. جستجوی پیام موقت قبلی با tempId یا شناسه موقت
+          // ۱. جستجوی پیام موقت قبلی با tempId
           const existingPendingIndex = currentList.findIndex((m) => {
             if (returnedTempId && String(m.id) === String(returnedTempId))
               return true;
-            // در صورتی که پیام از قبل با realMessageId ثبت شده باشد
             if (realMessageId && String(m.id) === String(realMessageId))
               return true;
             return false;
@@ -331,7 +272,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               status: "delivered",
             };
           } else {
-            // پیام جدید است (پیام دریافتی از طرف مقابل یا پیامی که در استیت نبوده)
+            // پیام جدید است
             updatedList = [...currentList, newMsg];
           }
 
@@ -364,9 +305,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // 2. Edit existing message
       case "EDIT_MESSAGE":
       case "MESSAGE_EDIT": {
-        const conversationId = content.conversationId || content.chatId;
-        const messageId = content.id || content.messageId;
-        const newText = content.text || content.content || "";
+        const msgContent = content as any;
+        const conversationId = msgContent.conversationId || msgContent.chatId;
+        const messageId = msgContent.id || msgContent.messageId;
+        const newText = msgContent.text || msgContent.content || "";
         if (conversationId && messageId) {
           get().editMessage(conversationId, messageId, newText);
         }
@@ -376,8 +318,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // 3. Delete message
       case "DELETE_MESSAGE":
       case "MESSAGE_DELETE": {
-        const conversationId = content.conversationId || content.chatId;
-        const messageId = content.id || content.messageId;
+        const msgContent = content as any;
+        const conversationId = msgContent.conversationId || msgContent.chatId;
+        const messageId = msgContent.id || msgContent.messageId;
         if (conversationId && messageId) {
           get().deleteMessage(conversationId, messageId);
         }
@@ -387,7 +330,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // 4. Conversation / User removed or left
       case "DELETE_CONVERSATION":
       case "LEAVE_CONVERSATION": {
-        const conversationId = content.conversationId || content.id;
+        const msgContent = content as any;
+        const conversationId = msgContent.conversationId || msgContent.id;
         if (conversationId) {
           get().deleteConversation(conversationId);
         }
@@ -527,10 +471,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   forwardMessage: (targetConversationId, message, fromChatTitle) =>
     set((state) => {
-      const timeNow = new Date().toLocaleTimeString("fa-IR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const timeNow = new Date().toISOString();
 
       const newMsg: MessageItem = {
         id: Date.now(),
@@ -541,7 +482,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         isOutgoing: true,
         status: "sent",
         forwardFrom: {
-          id: message.id,
+          id: String(message.id),
           name: message.senderName || "ناشناس",
           chatTitle: fromChatTitle,
         },
