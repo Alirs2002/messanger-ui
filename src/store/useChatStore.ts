@@ -281,11 +281,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               return {
                 ...c,
                 lastMessageText: newMsg.text,
-                unreadCount:
-                  String(state.activeConversationId) ===
-                    String(conversationId) || isMe
-                    ? c.unreadCount
-                    : (c.unreadCount || 0) + 1,
+                unreadCount: isMe ? c.unreadCount : (c.unreadCount || 0) + 1,
               };
             }
             return c;
