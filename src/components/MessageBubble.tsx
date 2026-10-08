@@ -8,6 +8,26 @@ interface MessageBubbleProps {
   isChannel?: boolean;
   onForwardClick?: (message: MessageItem) => void;
 }
+function formatBubbleTime(timeStr?: string): string {
+  if (!timeStr) return "";
+
+  // اگر از قبل فرمت شده بود (مثل ۲۱:۲۰)
+  if (timeStr.includes(":") && timeStr.length <= 8) {
+    return timeStr;
+  }
+
+  // اگر تاریخ کامل ISO بود (مثل 2026-10-08T18:25:15.111Z)
+  const d = new Date(timeStr);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleTimeString("fa-IR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+
+  return timeStr;
+}
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
@@ -73,12 +93,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         {replyToMessage && (
           <div
             onClick={(e) => {
-  e.stopPropagation();
-  if (onReplyClick && replyToMessage?.id) {
-    onReplyClick(replyToMessage.id);
-  }
-}}
-
+              e.stopPropagation();
+              if (onReplyClick && replyToMessage?.id) {
+                onReplyClick(replyToMessage.id);
+              }
+            }}
             className={`mb-2 p-2 rounded-lg border-r-2 text-xs leading-tight cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all ${
               isOutgoing
                 ? "bg-black/15 border-white text-white/90 hover:bg-black/25"
@@ -113,7 +132,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               : "justify-start text-gray-400"
           }`}
         >
-          {message.createdAt && <span>{message.createdAt}</span>}
+          {message.createdAt && (
+            <span>{formatBubbleTime(message.createdAt)}</span>
+          )}
           {message.isOutgoing && (
             <>
               {message.status === "read" && <CheckCheck size={14} />}
