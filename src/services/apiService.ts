@@ -107,15 +107,17 @@ export function mapConversation(raw: ConversationRaw): ConversationItem {
     lastMessageText: raw.lastMessageText, // نام 'raw' را با نام پارامتر ورودی تابع جایگزین کنید
     lastMessageSenderName: raw.lastMessageSenderName,
     lastMessageNickname: raw.lastMessageNickname,
-lastMessageState: (raw as any).lastMessageState ?? (raw as any).lastMessage?.state,
-lastMessageSenderId: (raw as any).lastMessage?.senderId ?? (raw as any).lastMessageSenderId,
+    lastMessageState:
+      (raw as any).lastMessageState ?? (raw as any).lastMessage?.state,
+    lastMessageSenderId:
+      (raw as any).lastMessage?.senderId ?? (raw as any).lastMessageSenderId,
 
     lastMessageTime: raw.lastMessageTime,
     unreadCount: raw.unreadCount ?? 0,
     isPinned: raw.isPinned ?? false,
     isOnline: raw.isOnline ?? false,
     isVerified: raw.isVerified ?? false,
-    
+
     isMuted: raw.isMuted ?? false,
     isBlocked: raw.isBlocked ?? false,
     isAdmin: raw.isAdmin,
@@ -186,9 +188,10 @@ export function mapMessageToItem(
         text: raw.replyRefMessageText || "",
         senderName: raw.replyRefUserNickname || "",
         // You can conditionally determine isOutgoing if the reply's sender ID matches the current user
-        isOutgoing: currentUserId != null && raw.replyRefSenderId != null 
-          ? String(raw.replyRefSenderId) === String(currentUserId) 
-          : false, 
+        isOutgoing:
+          currentUserId != null && raw.replyRefSenderId != null
+            ? String(raw.replyRefSenderId) === String(currentUserId)
+            : false,
       }
     : undefined;
 
