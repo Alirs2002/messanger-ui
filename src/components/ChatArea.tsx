@@ -611,6 +611,39 @@ export const ChatArea: React.FC = () => {
         )
       : currentMessages;
 
+  // Keep track of whether the reader was already at the bottom before a new
+  // message is rendered. This avoids pulling them away while reading history.
+  const isAtBottomRef = useRef(true);
+  const previousMessageStateRef = useRef({
+    conversationId: activeConversationId,
+    count: displayedMessages.length,
+  });
+
+  useEffect(() => {
+    const previous = previousMessageStateRef.current;
+    const sameConversation =
+      String(previous.conversationId) === String(activeConversationId);
+
+    if (sameConversation && displayedMessages.length > previous.count) {
+      if (isAtBottomRef.current) {
+        // Run after the message DOM has been updated.
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        setShowScrollBottom(false);
+        if ((activeConversation as any)?.unreadCount > 0) {
+          store.markAsRead?.(activeConversation.id);
+        }
+      }
+    } else if (!sameConversation) {
+      // Conversation changes are handled by the conversation initialization effect.
+      isAtBottomRef.current = true;
+    }
+
+    previousMessageStateRef.current = {
+      conversationId: activeConversationId,
+      count: displayedMessages.length,
+    };
+  }, [activeConversationId, displayedMessages.length]);
+
   const rawType = String((activeConversation as any)?.type || "").toUpperCase();
   const currentChatType: ChatType =
     rawType === "CHANNEL" ? "channel" : rawType === "GROUP" ? "group" : "pv";
@@ -644,9 +677,11 @@ export const ChatArea: React.FC = () => {
 
       if (unread > 0 && isScrollable) {
         container.scrollTop = 0;
+        isAtBottomRef.current = false;
         setShowScrollBottom(true);
       } else {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        isAtBottomRef.current = true;
         setShowScrollBottom(false);
         if (unread > 0 && store.markAsRead) {
           store.markAsRead(activeConversation.id);
@@ -662,6 +697,7 @@ export const ChatArea: React.FC = () => {
       messagesContainerRef.current;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
 
+    isAtBottomRef.current = distanceFromBottom <= 100;
     if (distanceFromBottom > 100) {
       setShowScrollBottom(true);
     } else {
@@ -676,6 +712,7 @@ export const ChatArea: React.FC = () => {
   };
 
   const handleScrollToBottom = () => {
+    isAtBottomRef.current = true;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     if (
       activeConversation &&
