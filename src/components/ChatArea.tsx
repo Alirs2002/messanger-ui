@@ -88,14 +88,13 @@ const mapApiMessage = (
 
   // 1. Get the reply ID (check both possible backend field names)
   //const replyRefId = msg.replyRefMessageId || msg.replyToMessageId;
-const replyRefId = String(
-  msg.replyRefMessageId ?? msg.replyToMessageId ?? ""
-);
+  const replyRefId = String(
+    msg.replyRefMessageId ?? msg.replyToMessageId ?? "",
+  );
   // 2. Try to find it in current messages as a fallback for missing data
   const replied = replyRefId
     ? allApiMessages.find((m) => String(m.id) === String(replyRefId))
     : undefined;
-
 
   // 3. Construct the reply object using the flat fields directly from the server
   let replyToMessage = null;
@@ -105,9 +104,15 @@ const replyRefId = String(
       // Use the flat text from server, fallback to the message text if we found it in the array
       text: msg.replyRefMessageText || replied?.text || "",
       // Use the flat nickname from server, fallback to array message, fallback to 'کاربر'
-      senderName: msg.replyRefUserNickname || replied?.authorNickname || replied?.senderNickname || "کاربر",
+      senderName:
+        msg.replyRefUserNickname ||
+        replied?.authorNickname ||
+        replied?.senderNickname ||
+        "کاربر",
       isOutgoing: currentUserId
-        ? String(msg.replyRefSenderId || replied?.authorUserId || replied?.senderId) === String(currentUserId)
+        ? String(
+            msg.replyRefSenderId || replied?.authorUserId || replied?.senderId,
+          ) === String(currentUserId)
         : false,
     };
   }
@@ -573,25 +578,31 @@ export const ChatArea: React.FC = () => {
       []
     : [];
 
-//  const optimisticOnly = localMessages.filter(
-//   (msg) => !apiMessages.some((api) => api.id === msg.id)
-// );
+  //  const optimisticOnly = localMessages.filter(
+  //   (msg) => !apiMessages.some((api) => api.id === msg.id)
+  // );
 
-const optimisticOnly = localMessages.filter(
-  (m) => !mappedApiMessages.some((api) => String(api.id) === String(m.id))
-);
+  const optimisticOnly = localMessages.filter(
+    (m) => !mappedApiMessages.some((api) => String(api.id) === String(m.id)),
+  );
 
+  // مرتب‌سازی داخلی برای پیام‌های جدید سوکت (در صورت داشتن آیدی معتبر)
+  const sortedOptimistic = [...optimisticOnly].sort((a, b) => {
+    const idA = Number(a.id);
+    const idB = Number(b.id);
+    if (!isNaN(idA) && !isNaN(idB)) {
+      return idA - idB;
+    }
+    return 0; // اگر آیدی غیرعددی بود ترتیب را به هم نریز
+  });
+
+  // ترکیب امن:
+  // پیام‌های رست با همان ترتیب اصلی سرور می‌مانند
+  // و پیام‌های جدید سوکت مستقیماً به انتهای آن‌ها چسبانده می‌شوند
   const currentMessages: MessageItem[] = [
     ...mappedApiMessages,
-    ...optimisticOnly,
+    ...sortedOptimistic,
   ];
-  // Sort by numeric message ID (assumes sequential IDs from server)
-  currentMessages.sort((a, b) => Number(a.id) - Number(b.id));
-  currentMessages.sort((a, b) => {
-    if (!a.timestamp) return 1;
-    if (!b.timestamp) return -1;
-    return a.timestamp.localeCompare(b.timestamp);
-  });
 
   const displayedMessages =
     isSearching && searchQuery.trim()
@@ -676,25 +687,34 @@ const optimisticOnly = localMessages.filter(
   };
 
   const handleScrollToMessage = (messageId: string | number) => {
-  const targetElement = document.getElementById(`msg-${messageId}`);
-  console.log("Looking for:", `msg-${messageId}`, "Found:", targetElement);
-  
-  if (targetElement) {
+    const targetElement = document.getElementById(`msg-${messageId}`);
+    console.log("Looking for:", `msg-${messageId}`, "Found:", targetElement);
+
+    if (targetElement) {
       targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
       // بقیه کدها...
 
-
-    // Flash highlight
-    targetElement.classList.add("bg-amber-100/60", "dark:bg-amber-900/30", "transition-colors", "duration-300", "rounded-2xl");
-    setTimeout(() => {
-      targetElement.classList.remove("bg-amber-100/60", "dark:bg-amber-900/30");
-    }, 1500);
-  } else {
-    // If not in DOM, you can log or notify the user
-    console.warn(`Message with id ${messageId} is not in view or not loaded yet.`);
-  }
-};
-
+      // Flash highlight
+      targetElement.classList.add(
+        "bg-amber-100/60",
+        "dark:bg-amber-900/30",
+        "transition-colors",
+        "duration-300",
+        "rounded-2xl",
+      );
+      setTimeout(() => {
+        targetElement.classList.remove(
+          "bg-amber-100/60",
+          "dark:bg-amber-900/30",
+        );
+      }, 1500);
+    } else {
+      // If not in DOM, you can log or notify the user
+      console.warn(
+        `Message with id ${messageId} is not in view or not loaded yet.`,
+      );
+    }
+  };
 
   const handleContextMenu = (e: React.MouseEvent, message: MessageItem) => {
     e.preventDefault();
