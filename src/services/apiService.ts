@@ -231,20 +231,17 @@ export const conversationsApi = {
 // در فایل src/services/apiService.ts
 export const deleteMessages = async (
   messageIds: string[],
-  targetType: "PERSONAL" | "GROUP" | "CHANNEL",
-  tagDelete: "FOR_ME" | "FOR_ALL",
+  tagDelete: "FOR_ALL" | "FOR_ME",
+  targetType: "PERSONAL" | "GROUP" | "CHANNEL" = "PERSONAL",
 ) => {
-  // حتماً از apiFetch خود پروژه استفاده کنید نه fetch خام
-  const response = await apiFetch("/messages/delete", {
-    method: "PATCH", // اینجا متد رو به جای POST یا حالت دیفالت، روی PATCH تنظیم می‌کنیم
+  return await apiFetch<void>("/messages/delete", {
+    method: "PATCH",
     body: JSON.stringify({
       messageIds,
-      targetType,
       tagDelete,
+      targetType,
     }),
   });
-
-  return response;
 };
 
 export interface SendMessagePayload {

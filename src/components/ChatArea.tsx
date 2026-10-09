@@ -788,10 +788,11 @@ export const ChatArea: React.FC = () => {
       const backendTargetType = targetTypeMap[currentChatType] || "PERSONAL";
 
       // فراخوانی API استاندارد بدون اکشن
+      // فراخوانی API استاندارد بدون اکشن
       await deleteMessages(
         [String(deleteModal.message.id)],
-        backendTargetType,
         tagDelete,
+        backendTargetType,
       );
 
       // پاک کردن پیام از UI به صورت آنی
