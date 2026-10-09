@@ -49,7 +49,12 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
 
   // تنظیم موقعیت منو جهت جلوگیری از بیرون‌زدگی از لبه‌های صفحه
   const menuWidth = 165;
-  const menuHeight = message.isOutgoing ? 220 : 130; // ارتفاع پویا براساس نوع پیام
+  // یک تخمین ارتفاع بر اساس تعداد آپشن‌هایی که فعال خواهند بود:
+  const baseHeight = 130;
+  const extraHeight =
+    (message.isOutgoing && onEdit ? 40 : 0) + (onDelete ? 45 : 0);
+  const menuHeight = baseHeight + extraHeight;
+
   const adjustedX =
     x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 12 : x;
   const adjustedY =
@@ -132,13 +137,13 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         </button>
       )}
 
-      {/* خط جداکننده قبل از حذف (فقط برای پیام‌های کاربر) */}
-      {message.isOutgoing && onDelete && (
+      {/* خط جداکننده قبل از حذف */}
+      {onDelete && (
         <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
       )}
 
-      {/* حذف پیام (فقط پیام‌های ارسال‌شده توسط خود کاربر) */}
-      {message.isOutgoing && onDelete && (
+      {/* حذف پیام (نمایش بر اساس تشخیص کامپوننت والد در پراپ onDelete) */}
+      {onDelete && (
         <button
           onClick={() => {
             onDelete(message);

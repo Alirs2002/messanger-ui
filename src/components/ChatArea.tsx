@@ -21,6 +21,8 @@ import { MessageContextMenu } from "./MessageContextMenu";
 import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
 import { ForwardModal } from "./ForwardModal";
 import { UserProfileModal } from "./UserProfileModal";
+import { DeleteMessageModal } from "./DeleteMessageModal"; // <--- مودال حذف پیام
+import { deleteMessages } from "../services/apiService"; // <--- ایمپورت متد API
 import type { MessageItem } from "../types/chat";
 import type { Message } from "../types/messenger";
 import { useMessages } from "../hooks/useMessages";
@@ -35,7 +37,6 @@ function formatPersianTime(ts: any): string {
     const m = String(ts.minute).padStart(2, "0");
     return `${h}:${m}`.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);
   }
-  // fallback for string/number
   const d = new Date(ts);
   if (!isNaN(d.getTime())) {
     return d.toLocaleTimeString("fa-IR", {
@@ -73,12 +74,11 @@ const stateToStatus = (state?: string): MessageItem["status"] => {
   }
 };
 const mapApiMessage = (
-  msg: Message | any, // 'any' allows us to safely access the flat backend properties
+  msg: Message | any,
   currentUserId: string | number | undefined,
   conversationId: string | number | undefined,
   allApiMessages: Message[],
 ): MessageItem => {
-  // اینجا آیدی واقعی رو می‌گیریم
   const actualSenderId = msg.authorUserId || msg.senderId;
   const actualSenderName = msg.authorNickname || msg.senderNickname;
 
@@ -86,24 +86,18 @@ const mapApiMessage = (
     ? String(actualSenderId) === String(currentUserId)
     : false;
 
-  // 1. Get the reply ID (check both possible backend field names)
-  //const replyRefId = msg.replyRefMessageId || msg.replyToMessageId;
   const replyRefId = String(
     msg.replyRefMessageId ?? msg.replyToMessageId ?? "",
   );
-  // 2. Try to find it in current messages as a fallback for missing data
   const replied = replyRefId
     ? allApiMessages.find((m) => String(m.id) === String(replyRefId))
     : undefined;
 
-  // 3. Construct the reply object using the flat fields directly from the server
   let replyToMessage = null;
   if (replyRefId) {
     replyToMessage = {
       id: replyRefId,
-      // Use the flat text from server, fallback to the message text if we found it in the array
       text: msg.replyRefMessageText || replied?.text || "",
-      // Use the flat nickname from server, fallback to array message, fallback to 'کاربر'
       senderName:
         msg.replyRefUserNickname ||
         replied?.authorNickname ||
@@ -129,14 +123,12 @@ const mapApiMessage = (
     timestamp: formatPersianDate(
       (msg as any).createdAt || (msg as any).timestamp,
     ),
-
     isOutgoing,
     isMe: isOutgoing,
     isEdited: Boolean(msg.isEdited),
     status: stateToStatus((msg as any).messageState ?? msg.state),
     replyToId: replyRefId ?? null,
     replyRefMessageId: replyRefId ?? null,
-    // Use the newly constructed object here
     replyToMessage,
     forwardFrom: null,
   };
@@ -419,13 +411,8 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({
         onClose();
       }
     };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -468,7 +455,6 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({
           <X className="w-4 h-4" />
         </button>
       </div>
-
       <div className="p-3 max-h-56 overflow-y-auto grid grid-cols-7 sm:grid-cols-8 gap-1.5">
         {currentEmojis.map((emoji, index) => (
           <button
@@ -502,10 +488,21 @@ export const ChatArea: React.FC = () => {
   );
   const [forwardingMessage, setForwardingMessage] =
     useState<MessageItem | null>(null);
+
+  // استیت مربوط به مودال حذف پیام
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    message: MessageItem | null;
+    canDeleteForAll: boolean;
+  }>({
+    isOpen: false,
+    message: null,
+    canDeleteForAll: false,
+  });
+
   const [isBlocked, setIsBlocked] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -525,7 +522,6 @@ export const ChatArea: React.FC = () => {
     (c: any) => String(c.id) === String(activeConversationId),
   );
 
-  // اتصال به API از طریق useMessages
   const apiConversationId: string | null =
     (activeConversation as any)?.conversationId ??
     (activeConversationId != null ? String(activeConversationId) : null);
@@ -540,26 +536,7 @@ export const ChatArea: React.FC = () => {
     refresh: refreshMessages,
   } = useMessages(apiConversationId);
 
-  //const currentUserId = store.currentUserId ?? undefined;
-  //const currentUserId = store.currentUserId ?? activeConversation?.targetId;
-  // line ~504
-  //const currentUserId = authStorage.getUserId() ?? undefined;
-  //const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
-  //const currentUserId: string | undefined = authStorage.getUserId() ?? undefined;
-  //const currentUserId = authStorage.getUserId() ?? undefined;
-  //const currentUserId = useCurrentUserUuid() ?? undefined;
   const currentUserId = useCurrentUserUuid();
-  //const currentUserId = (activeConversation as any)?.userId ?? undefined;
-  console.log(
-    "raw apiMessages:",
-    JSON.stringify(
-      apiMessages.map((m) => ({
-        id: m.id,
-        senderId: m.senderId,
-        text: m.text?.slice(0, 30),
-      })),
-    ),
-  );
 
   const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
     mapApiMessage(
@@ -569,36 +546,24 @@ export const ChatArea: React.FC = () => {
       apiMessages,
     ),
   );
-  //console.log("DEBUG", { currentUserId, apiMessages: apiMessages.slice(0, 3) });
 
-  // پیام‌های خوش‌بینانه محلی (اگر وجود داشته باشند) به پیام‌های API اضافه می‌شوند
   const localMessages: MessageItem[] = activeConversationId
     ? messages[activeConversationId] ||
       messages[String(activeConversationId)] ||
       []
     : [];
 
-  //  const optimisticOnly = localMessages.filter(
-  //   (msg) => !apiMessages.some((api) => api.id === msg.id)
-  // );
-
   const optimisticOnly = localMessages.filter(
     (m) => !mappedApiMessages.some((api) => String(api.id) === String(m.id)),
   );
 
-  // مرتب‌سازی داخلی برای پیام‌های جدید سوکت (در صورت داشتن آیدی معتبر)
   const sortedOptimistic = [...optimisticOnly].sort((a, b) => {
     const idA = Number(a.id);
     const idB = Number(b.id);
-    if (!isNaN(idA) && !isNaN(idB)) {
-      return idA - idB;
-    }
-    return 0; // اگر آیدی غیرعددی بود ترتیب را به هم نریز
+    if (!isNaN(idA) && !isNaN(idB)) return idA - idB;
+    return 0;
   });
 
-  // ترکیب امن:
-  // پیام‌های رست با همان ترتیب اصلی سرور می‌مانند
-  // و پیام‌های جدید سوکت مستقیماً به انتهای آن‌ها چسبانده می‌شوند
   const currentMessages: MessageItem[] = [
     ...mappedApiMessages,
     ...sortedOptimistic,
@@ -611,7 +576,11 @@ export const ChatArea: React.FC = () => {
         )
       : currentMessages;
 
-  const rawType = String((activeConversation as any)?.type || "").toUpperCase();
+  const rawType = String(
+    (activeConversation as any)?.type ||
+      (activeConversation as any)?.targetType ||
+      "",
+  ).toUpperCase();
   const currentChatType: ChatType =
     rawType === "CHANNEL" ? "channel" : rawType === "GROUP" ? "group" : "pv";
 
@@ -628,9 +597,7 @@ export const ChatArea: React.FC = () => {
   }, [activeConversationId]);
 
   useEffect(() => {
-    if (isSearching) {
-      searchInputRef.current?.focus();
-    }
+    if (isSearching) searchInputRef.current?.focus();
   }, [isSearching]);
 
   useEffect(() => {
@@ -718,13 +685,8 @@ export const ChatArea: React.FC = () => {
 
   const handleScrollToMessage = (messageId: string | number) => {
     const targetElement = document.getElementById(`msg-${messageId}`);
-    console.log("Looking for:", `msg-${messageId}`, "Found:", targetElement);
-
     if (targetElement) {
       targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      // بقیه کدها...
-
-      // Flash highlight
       targetElement.classList.add(
         "bg-amber-100/60",
         "dark:bg-amber-900/30",
@@ -738,11 +700,6 @@ export const ChatArea: React.FC = () => {
           "dark:bg-amber-900/30",
         );
       }, 1500);
-    } else {
-      // If not in DOM, you can log or notify the user
-      console.warn(
-        `Message with id ${messageId} is not in view or not loaded yet.`,
-      );
     }
   };
 
@@ -773,17 +730,82 @@ export const ChatArea: React.FC = () => {
     closeContextMenu();
   };
 
+  // ==========================
+  // توابع بررسی و حذف پیام
+  // ==========================
+  const checkCanDelete = (
+    message: MessageItem,
+    chatType: ChatType,
+    role?: string,
+  ) => {
+    if (chatType === "pv") return true; // در پیوی میشه هر پیامی رو (حداقل برای خودم) پاک کرد
+    if (message.isOutgoing) return true; // پیام‌های ارسالی خودم همیشه قابل حذفن
+    if (role === "ADMIN" || role === "OWNER") return true; // ادمین میتونه پیام بقیه رو هم حذف کنه
+    return false;
+  };
+
+  const checkCanDeleteForAll = (
+    message: MessageItem,
+    chatType: ChatType,
+    role?: string,
+  ) => {
+    const isPrivileged = role === "ADMIN" || role === "OWNER";
+
+    if (message.isOutgoing) {
+      if (chatType === "pv" || chatType === "group") return true;
+      if (chatType === "channel" && isPrivileged) return true;
+    } else {
+      if (chatType === "pv") return true; // دو طرفه در پیوی
+      if ((chatType === "group" || chatType === "channel") && isPrivileged)
+        return true;
+    }
+    return false;
+  };
+
   const handleDeleteMessage = (message: MessageItem) => {
-    if (!message.isOutgoing) {
-      alert("امکان حذف پیام‌های سایر اعضا وجود ندارد.");
-      closeContextMenu();
-      return;
-    }
-    if (activeConversation && store.deleteMessage) {
-      store.deleteMessage(activeConversation.id, message.id);
-    }
+    const role = (activeConversation as any)?.role;
+    const canForAll = checkCanDeleteForAll(message, currentChatType, role);
+
+    setDeleteModal({
+      isOpen: true,
+      message,
+      canDeleteForAll: canForAll,
+    });
     closeContextMenu();
   };
+
+  const handleConfirmDelete = async (tagDelete: "FOR_ALL" | "FOR_ME") => {
+    if (!deleteModal.message || !activeConversation) return;
+
+    try {
+      // پیدا کردن تایپ برای بک اند بر اساس نوع چت موجود
+      // پیدا کردن تایپ برای بک اند بر اساس نوع چت موجود
+      const targetTypeMap: Record<string, "PERSONAL" | "GROUP" | "CHANNEL"> = {
+        pv: "PERSONAL",
+        group: "GROUP",
+        channel: "CHANNEL",
+      };
+      const backendTargetType = targetTypeMap[currentChatType] || "PERSONAL";
+
+      // فراخوانی API استاندارد بدون اکشن
+      await deleteMessages(
+        [String(deleteModal.message.id)],
+        backendTargetType,
+        tagDelete,
+      );
+
+      // پاک کردن پیام از UI به صورت آنی
+      if (store.deleteMessage) {
+        store.deleteMessage(activeConversation.id, deleteModal.message.id);
+      }
+    } catch (err) {
+      console.error("خطا در حذف پیام:", err);
+      alert("مشکلی در حذف پیام به وجود آمد.");
+    } finally {
+      setDeleteModal({ isOpen: false, message: null, canDeleteForAll: false });
+    }
+  };
+  // ==========================
 
   const handleForwardMessage = (message: MessageItem) => {
     setForwardingMessage(message);
@@ -883,7 +905,6 @@ export const ChatArea: React.FC = () => {
       {/* ناحیه نمایش پیام‌ها */}
       <div
         ref={messagesContainerRef}
-        //onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 space-y-4"
         onScroll={(e) => {
           handleScroll();
@@ -1053,8 +1074,32 @@ export const ChatArea: React.FC = () => {
           onClose={closeContextMenu}
           onReply={handleReplyMessage}
           onEdit={handleEditMessage}
-          onDelete={handleDeleteMessage}
+          onDelete={
+            checkCanDelete(
+              contextMenu.message,
+              currentChatType,
+              (activeConversation as any)?.role,
+            )
+              ? handleDeleteMessage
+              : undefined
+          }
           onForward={handleForwardMessage}
+        />
+      )}
+
+      {/* نمایش مودال تایید حذف در صورت نیاز */}
+      {deleteModal.isOpen && (
+        <DeleteMessageModal
+          isOpen={deleteModal.isOpen}
+          canDeleteForAll={deleteModal.canDeleteForAll}
+          onClose={() =>
+            setDeleteModal({
+              isOpen: false,
+              message: null,
+              canDeleteForAll: false,
+            })
+          }
+          onConfirm={handleConfirmDelete}
         />
       )}
 
