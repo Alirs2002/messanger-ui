@@ -1,3 +1,4 @@
+// فایل: src/services/apiService.ts
 import { authStorage } from "./auth";
 import type { ConversationItem, MessageItem } from "../types/chat";
 import type {
@@ -14,11 +15,11 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const storageToken = authStorage.getToken();
+  const secretToken = authStorage.getToken();
   // توکن معتبر کپی شده از تب نتورک سیستم اصلی
-  const token = storageToken || "eyJhbGciOi...";
+  const token = secretToken || "eyJhbGciOi...";
 
-  console.log("Using Token:", token); // چک کن که توکن چاپ بشه
+  console.log("Using Token:", token);
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -105,7 +106,7 @@ export function mapConversation(raw: ConversationRaw): ConversationItem {
     type:
       (raw.targetType === "ALL" ? "PERSONAL" : raw.targetType) ?? "PERSONAL",
     avatar: raw.avatar,
-    lastMessageText: raw.lastMessageText, // نام 'raw' را با نام پارامتر ورودی تابع جایگزین کنید
+    lastMessageText: raw.lastMessageText,
     lastMessageSenderName: raw.lastMessageSenderName,
     lastMessageNickname: raw.lastMessageNickname,
     lastMessageState:
@@ -172,10 +173,24 @@ function mapMessageStatus(
   }
 }
 
+// پیام‌های حذف‌شده را null برمی‌گرداند تا فراخواننده فیلترشان کند
+export function isMessageDeleted(raw: BackendMessage | any): boolean {
+  const tag = (raw?.deleteTag ?? raw?.deletedTag ?? "")
+    .toString()
+    .toUpperCase();
+  return Boolean(
+    raw?.isDeleted === true ||
+    raw?.deleted === true ||
+    tag === "FOR_ALL" ||
+    tag === "FOR_ME",
+  );
+}
+
 export function mapMessageToItem(
   raw: BackendMessage | any,
   currentUserId?: string | number | null,
-): MessageItem {
+): MessageItem | null {
+  if (isMessageDeleted(raw)) return null;
   const senderId = raw.senderId ?? raw.creatorId ?? raw.sender?.id ?? raw.from;
   const isOutgoing =
     currentUserId != null
@@ -198,6 +213,7 @@ export function mapMessageToItem(
 
   return {
     id: String(raw.id ?? raw.messageId ?? raw.uuid),
+    isDeleted: false,
     senderId: senderId ? String(senderId) : undefined,
     senderName: raw.senderNickname ?? raw.senderName ?? "",
     text: raw.text ?? raw.content ?? raw.body ?? "",
@@ -228,7 +244,6 @@ export const conversationsApi = {
   },
 };
 
-// در فایل src/services/apiService.ts
 export const deleteMessages = async (
   messageIds: string[],
   tagDelete: "FOR_ALL" | "FOR_ME",
@@ -266,7 +281,6 @@ export interface SendMessagePayload {
   opponentIds?: string[];
   messageType?: string;
 }
-// مسیر: src/services/apiService.ts
 
 export const editMessage = async (
   messageId: string,

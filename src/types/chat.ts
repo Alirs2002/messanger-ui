@@ -20,11 +20,10 @@ export interface ReplyToMessageInfo {
 }
 
 export interface SocketEnvelope<T = any> {
-  type: string;        // E.g., "MESSAGE_SEND", "USER_DELETE", "GROUP_CREATE"
-  content: T;          // The actual REST API payload (MessageItem, ConversationItem, etc.)
+  type: string; // E.g., "MESSAGE_SEND", "USER_DELETE", "GROUP_CREATE"
+  content: T; // The actual REST API payload (MessageItem, ConversationItem, etc.)
   isResponse: boolean; // false if someone else did it, true if it's an echo of your own action
 }
-
 
 export interface MessageItem {
   id: string | number;
@@ -42,6 +41,7 @@ export interface MessageItem {
   replyToId?: string | number | null;
   replyRefMessageId?: string | number | null;
   forwardFrom?: ForwardFromInfo | null;
+  isDeleted?: boolean;
   replyToMessage?: ReplyToMessageInfo | null;
 }
 

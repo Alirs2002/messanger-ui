@@ -6,8 +6,15 @@ import type {
   SocketEnvelope,
 } from "../types/chat";
 import { authStorage } from "../services/auth";
-import { messagesApi } from "../services/apiService";
+import { messagesApi, isMessageDeleted } from "../services/apiService";
 import { v4 as uuidv4 } from "uuid";
+
+// اگر mapper پیام حذف‌شده را null برگرداند، آن را حذف می‌کنیم
+// و در غیر این صورت پرچم isDeleted را تضمین می‌کنیم.
+const filterDeleted = (msgs: MessageItem[]): MessageItem[] =>
+  msgs
+    .filter((m): m is MessageItem => m != null && !isMessageDeleted(m))
+    .map((m) => ({ ...m, isDeleted: false }));
 
 interface ChatStore {
   activeTab: ConversationType;
@@ -92,7 +99,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set((state) => ({
       messages: {
         ...state.messages,
-        [conversationId]: newMessages,
+        [conversationId]: filterDeleted(newMessages),
       },
     })),
 
@@ -117,6 +124,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         minute: "2-digit",
       }),
       isOutgoing: true,
+      isDeleted: false,
       status: "sending",
       replyToMessage: replyingTo
         ? {
@@ -142,7 +150,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
 
     // ۲. پیلود کامل پیام
-    // ۲. پیلود کامل پیام
     const payload = {
       tempId: tempId,
       conversationId: String(conversationId),
@@ -156,14 +163,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       extra: "",
       forwarderId: "",
       forwarderNickname: "",
-
-      // پر کردن صحیح اطلاعات ریپلای
       replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
       replyRefMessageText: replyingTo ? replyingTo.text : "",
-      replyRefUserId: replyingTo ? String(replyingTo.senderId || "") : "", // <--- اضافه کردن senderId
+      replyRefUserId: "",
       replyRefUserNickname: replyingTo ? replyingTo.senderName || "" : "",
-      replyRefMessageType: replyingTo ? "TEXT" : "", // <--- اضافه کردن نوع پیام
-
+      replyRefMessageType: "",
       replyRefUserAvatarThumbnail: { id: "", url: "" },
       messageState: "SENT",
       opponentIds: [],
@@ -235,7 +239,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const realMessageId = msgContent.id || msgContent.messageId;
         const returnedTempId = msgContent.tempId;
 
+        if (isMessageDeleted(msgContent)) {
+          // پیام حذف‌شده از سمت سرور رسیده؛ آن را نادیده می‌گیریم
+          get().deleteMessage(conversationId, realMessageId || returnedTempId);
+          break;
+        }
+
         const newMsg: MessageItem = {
+          isDeleted: false,
           id: realMessageId || returnedTempId || Date.now(),
           conversationId: conversationId,
           senderId: actualSenderId || null,
@@ -483,6 +494,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         text: message.text,
         createdAt: timeNow,
         isOutgoing: true,
+        isDeleted: false,
         status: "sent",
         forwardFrom: {
           id: String(message.id),
