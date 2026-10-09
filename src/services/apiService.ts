@@ -266,6 +266,21 @@ export interface SendMessagePayload {
   opponentIds?: string[];
   messageType?: string;
 }
+// مسیر: src/services/apiService.ts
+
+export const editMessage = async (
+  messageId: string,
+  targetType: string,
+  text: string,
+): Promise<void> => {
+  await apiFetch(`/messages/edit/${messageId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      targetType,
+      text,
+    }),
+  });
+};
 
 export const messagesApi = {
   async getConversationDetail(
@@ -292,6 +307,7 @@ export const messagesApi = {
       body: JSON.stringify(messagePayload),
     });
   },
+
   async getNextPage(
     conversationId: string,
     pageNo: number,

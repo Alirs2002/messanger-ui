@@ -21,8 +21,8 @@ import { MessageContextMenu } from "./MessageContextMenu";
 import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
 import { ForwardModal } from "./ForwardModal";
 import { UserProfileModal } from "./UserProfileModal";
-import { DeleteMessageModal } from "./DeleteMessageModal"; // <--- مودال حذف پیام
-import { deleteMessages } from "../services/apiService"; // <--- ایمپورت متد API
+import { DeleteMessageModal } from "./DeleteMessageModal";
+import { deleteMessages, editMessage } from "../services/apiService"; // <--- اضافه‌شدن editMessage
 import type { MessageItem } from "../types/chat";
 import type { Message } from "../types/messenger";
 import { useMessages } from "../hooks/useMessages";
@@ -482,10 +482,11 @@ export const ChatArea: React.FC = () => {
   const replyingTo = store.replyingTo;
   const setReplyingTo = store.setReplyingTo;
 
+  // استخراج پیام در حال ویرایش از store
+  const editingMessage = store.messageToEdit || null;
+  const setEditingMessage = store.setMessageToEdit || (() => {});
+
   const [messageText, setMessageText] = useState("");
-  const [editingMessage, setEditingMessage] = useState<MessageItem | null>(
-    null,
-  );
   const [forwardingMessage, setForwardingMessage] =
     useState<MessageItem | null>(null);
 
@@ -536,22 +537,53 @@ export const ChatArea: React.FC = () => {
     refresh: refreshMessages,
   } = useMessages(apiConversationId);
 
-  const currentUserId = useCurrentUserUuid();
+  // const currentUserId = useCurrentUserUuid();
 
-  const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
-    mapApiMessage(
-      m,
-      currentUserId,
-      apiConversationId ?? undefined,
-      apiMessages,
-    ),
-  );
+  // const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
+  //   mapApiMessage(
+  //     m,
+  //     currentUserId,
+  //     apiConversationId ?? undefined,
+  //     apiMessages,
+  //   ),
+  // );
+
+  // const localMessages: MessageItem[] = activeConversationId
+  //   ? messages[activeConversationId] ||
+  //     messages[String(activeConversationId)] ||
+  //     []
+  //   : [];
+  const currentUserId = useCurrentUserUuid();
 
   const localMessages: MessageItem[] = activeConversationId
     ? messages[activeConversationId] ||
       messages[String(activeConversationId)] ||
       []
     : [];
+
+  const mappedApiMessages: MessageItem[] = apiMessages.map((m) => {
+    // تبدیل دیتای بک‌اند به فرمت UI
+    const baseMsg = mapApiMessage(
+      m,
+      currentUserId,
+      apiConversationId ?? undefined,
+      apiMessages,
+    );
+
+    // 🌟 همگام‌سازی آنی: بررسی اینکه آیا این پیام همین الان به صورت محلی ویرایش شده است یا نه
+    const localVersion = localMessages.find(
+      (lm) => String(lm.id) === String(baseMsg.id),
+    );
+    if (localVersion && localVersion.text !== baseMsg.text) {
+      return {
+        ...baseMsg,
+        text: localVersion.text,
+        isEdited: true,
+      };
+    }
+
+    return baseMsg;
+  });
 
   const optimisticOnly = localMessages.filter(
     (m) => !mappedApiMessages.some((api) => String(api.id) === String(m.id)),
@@ -611,6 +643,17 @@ export const ChatArea: React.FC = () => {
     }, 60);
     return () => clearTimeout(timer);
   }, [activeConversationId, store.markAsRead]);
+
+  // وقتی پیام برای ویرایش در استیت قرار می‌گیرد، متن آن را به باکس ورودی منتقل می‌کنیم
+  useEffect(() => {
+    if (editingMessage) {
+      if (setReplyingTo) setReplyingTo(null);
+      setMessageText(editingMessage.text || "");
+      inputRef.current?.focus();
+    } else {
+      setMessageText("");
+    }
+  }, [editingMessage, setReplyingTo]);
 
   const previousMessageCountRef = useRef<{
     conversationId: string;
@@ -717,19 +760,6 @@ export const ChatArea: React.FC = () => {
     closeContextMenu();
   };
 
-  const handleEditMessage = (message: MessageItem) => {
-    if (!message.isOutgoing) {
-      alert("شما فقط می‌توانید پیام‌های ارسالی خود را ویرایش کنید.");
-      closeContextMenu();
-      return;
-    }
-    if (setReplyingTo) setReplyingTo(null);
-    setEditingMessage(message);
-    setMessageText(message.text || "");
-    inputRef.current?.focus();
-    closeContextMenu();
-  };
-
   // ==========================
   // توابع بررسی و حذف پیام
   // ==========================
@@ -738,9 +768,9 @@ export const ChatArea: React.FC = () => {
     chatType: ChatType,
     role?: string,
   ) => {
-    if (chatType === "pv") return true; // در پیوی میشه هر پیامی رو (حداقل برای خودم) پاک کرد
-    if (message.isOutgoing) return true; // پیام‌های ارسالی خودم همیشه قابل حذفن
-    if (role === "ADMIN" || role === "OWNER") return true; // ادمین میتونه پیام بقیه رو هم حذف کنه
+    if (chatType === "pv") return true;
+    if (message.isOutgoing) return true;
+    if (role === "ADMIN" || role === "OWNER") return true;
     return false;
   };
 
@@ -750,12 +780,11 @@ export const ChatArea: React.FC = () => {
     role?: string,
   ) => {
     const isPrivileged = role === "ADMIN" || role === "OWNER";
-
     if (message.isOutgoing) {
       if (chatType === "pv" || chatType === "group") return true;
       if (chatType === "channel" && isPrivileged) return true;
     } else {
-      if (chatType === "pv") return true; // دو طرفه در پیوی
+      if (chatType === "pv") return true;
       if ((chatType === "group" || chatType === "channel") && isPrivileged)
         return true;
     }
@@ -778,8 +807,6 @@ export const ChatArea: React.FC = () => {
     if (!deleteModal.message || !activeConversation) return;
 
     try {
-      // پیدا کردن تایپ برای بک اند بر اساس نوع چت موجود
-      // پیدا کردن تایپ برای بک اند بر اساس نوع چت موجود
       const targetTypeMap: Record<string, "PERSONAL" | "GROUP" | "CHANNEL"> = {
         pv: "PERSONAL",
         group: "GROUP",
@@ -787,15 +814,12 @@ export const ChatArea: React.FC = () => {
       };
       const backendTargetType = targetTypeMap[currentChatType] || "PERSONAL";
 
-      // فراخوانی API استاندارد بدون اکشن
-      // فراخوانی API استاندارد بدون اکشن
       await deleteMessages(
         [String(deleteModal.message.id)],
         tagDelete,
         backendTargetType,
       );
 
-      // پاک کردن پیام از UI به صورت آنی
       if (store.deleteMessage) {
         store.deleteMessage(activeConversation.id, deleteModal.message.id);
       }
@@ -813,21 +837,47 @@ export const ChatArea: React.FC = () => {
     closeContextMenu();
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // ارسال یا ویرایش پیام (با متد async برای پشتیبانی از درخواست شبکه)
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !activeConversation) return;
     if (isChannel && !canPostInChannel) return;
 
     if (editingMessage && store.editMessage) {
-      store.editMessage(
-        activeConversation.id,
-        editingMessage.id,
-        messageText.trim(),
-      );
-      setEditingMessage(null);
+      try {
+        const targetTypeMap: Record<string, "PERSONAL" | "GROUP" | "CHANNEL"> =
+          {
+            pv: "PERSONAL",
+            group: "GROUP",
+            channel: "CHANNEL",
+          };
+        const backendTargetType = targetTypeMap[currentChatType] || "PERSONAL";
+
+        // ارسال درخواست آپدیت به سمت سرور
+        await editMessage(
+          String(editingMessage.id),
+          backendTargetType,
+          messageText.trim(),
+        );
+
+        // آپدیت محلی استیت
+        store.editMessage(
+          activeConversation.id,
+          editingMessage.id,
+          messageText.trim(),
+        );
+        refreshMessages();
+      } catch (error) {
+        console.error("خطا در ویرایش پیام:", error);
+        alert("ویرایش پیام با مشکل مواجه شد.");
+      } finally {
+        setEditingMessage(null);
+      }
     } else if (store.sendMessage) {
+      // ارسال پیام جدید
       store.sendMessage(activeConversation.id, messageText.trim());
     }
+
     setMessageText("");
     setShowEmojiPicker(false);
     handleScrollToBottom();
@@ -1045,16 +1095,22 @@ export const ChatArea: React.FC = () => {
             type="text"
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
-            placeholder="پیام خود را بنویسید..."
+            placeholder={
+              editingMessage ? "ویرایش پیام..." : "پیام خود را بنویسید..."
+            }
             disabled={isBlocked || (isChannel && !canPostInChannel)}
             className="flex-1 bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-gray-900 dark:text-white disabled:opacity-50"
           />
           {messageText.trim() ? (
             <button
               type="submit"
-              className="p-3 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition"
+              className={`p-3 text-white rounded-full transition ${editingMessage ? "bg-amber-500 hover:bg-amber-600" : "bg-emerald-600 hover:bg-emerald-700"}`}
             >
-              <Send className="w-5 h-5" />
+              {editingMessage ? (
+                <Edit2 className="w-5 h-5" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </button>
           ) : (
             <button
@@ -1074,7 +1130,6 @@ export const ChatArea: React.FC = () => {
           message={contextMenu.message}
           onClose={closeContextMenu}
           onReply={handleReplyMessage}
-          onEdit={handleEditMessage}
           onDelete={
             checkCanDelete(
               contextMenu.message,

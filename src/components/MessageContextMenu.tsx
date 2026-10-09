@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Reply, Forward, Copy, Check, Edit3, Trash2 } from "lucide-react";
 import type { MessageItem } from "../types/chat";
+import { useChatStore } from "../store/useChatStore";
 
 interface MessageContextMenuProps {
   x: number;
@@ -8,7 +9,7 @@ interface MessageContextMenuProps {
   message: MessageItem;
   onClose: () => void;
   onReply?: (message: MessageItem) => void;
-  onEdit?: (message: MessageItem) => void;
+  onEdit?: (message: MessageItem) => void; // این پراپ را نگه داشتیم تا ساختار نشکند، اما کار اصلی را Store انجام می‌دهد
   onDelete?: (message: MessageItem) => void;
   onForward?: (message: MessageItem) => void;
 }
@@ -19,12 +20,12 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   message,
   onClose,
   onReply,
-  onEdit,
   onDelete,
   onForward,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const setMessageToEdit = useChatStore((state) => state.setMessageToEdit);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -51,8 +52,7 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   const menuWidth = 165;
   // یک تخمین ارتفاع بر اساس تعداد آپشن‌هایی که فعال خواهند بود:
   const baseHeight = 130;
-  const extraHeight =
-    (message.isOutgoing && onEdit ? 40 : 0) + (onDelete ? 45 : 0);
+  const extraHeight = (message.isOutgoing ? 40 : 0) + (onDelete ? 45 : 0);
   const menuHeight = baseHeight + extraHeight;
 
   const adjustedX =
@@ -123,11 +123,11 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         </button>
       )}
 
-      {/* ویرایش (فقط پیام‌های ارسال‌شده توسط کاربر) */}
-      {message.isOutgoing && onEdit && (
+      {/* ویرایش (فقط پیام‌های ارسال‌شده توسط کاربر جاری) */}
+      {message.isOutgoing && (
         <button
           onClick={() => {
-            onEdit(message);
+            setMessageToEdit(message); // پیام در استیت ثبت می‌شود
             onClose();
           }}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
@@ -142,7 +142,7 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
       )}
 
-      {/* حذف پیام (نمایش بر اساس تشخیص کامپوننت والد در پراپ onDelete) */}
+      {/* حذف پیام */}
       {onDelete && (
         <button
           onClick={() => {

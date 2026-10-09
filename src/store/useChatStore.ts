@@ -13,6 +13,8 @@ interface ChatStore {
   activeTab: ConversationType;
   setActiveTab: (tab: ConversationType) => void;
   searchQuery: string;
+  messageToEdit: MessageItem | null;
+  setMessageToEdit: (message: MessageItem | null) => void;
   setSearchQuery: (query: string) => void;
   activeConversationId: string | number | null;
   setActiveConversation: (id: string | number | null) => void;
@@ -67,7 +69,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   searchQuery: "",
   setSearchQuery: (query) => set({ searchQuery: query }),
   activeConversationId: null,
-
+  messageToEdit: null,
+  setMessageToEdit: (message) => set({ messageToEdit: message }),
   setActiveConversation: (id) =>
     set({
       activeConversationId: id,
