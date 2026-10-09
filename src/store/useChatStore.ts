@@ -142,6 +142,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
 
     // ۲. پیلود کامل پیام
+    // ۲. پیلود کامل پیام
     const payload = {
       tempId: tempId,
       conversationId: String(conversationId),
@@ -155,11 +156,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       extra: "",
       forwarderId: "",
       forwarderNickname: "",
+
+      // پر کردن صحیح اطلاعات ریپلای
       replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
       replyRefMessageText: replyingTo ? replyingTo.text : "",
-      replyRefUserId: "",
+      replyRefUserId: replyingTo ? String(replyingTo.senderId || "") : "", // <--- اضافه کردن senderId
       replyRefUserNickname: replyingTo ? replyingTo.senderName || "" : "",
-      replyRefMessageType: "",
+      replyRefMessageType: replyingTo ? "TEXT" : "", // <--- اضافه کردن نوع پیام
+
       replyRefUserAvatarThumbnail: { id: "", url: "" },
       messageState: "SENT",
       opponentIds: [],
