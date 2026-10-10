@@ -632,17 +632,50 @@ export const ChatArea: React.FC = () => {
     if (isSearching) searchInputRef.current?.focus();
   }, [isSearching]);
 
-  useEffect(() => {
-    if (editingMessage || !activeConversation) return;
-    const timer = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-      setShowScrollBottom(false);
-      if (((activeConversation as any).unreadCount ?? 0) > 0) {
-        store.markAsRead?.(activeConversation.id);
+useEffect(() => {
+  if (editingMessage || !activeConversation) return;
+  
+  // اگر هنوز پیام‌ها لود نشده‌اند، صبر می‌کنیم
+  if (messages.length === 0) return;
+
+  const timer = setTimeout(() => {
+    const unreadCount = (activeConversation as any).unreadCount ?? 0;
+    let scrolledToUnread = false;
+
+    // بررسی اینکه آیا پیام خوانده نشده داریم و تعداد پیام‌های لود شده از آنها بیشتر است یا خیر
+    if (unreadCount > 0 && messages.length >= unreadCount) {
+      // پیدا کردن ایندکس اولین پیام خوانده نشده (از آخر به اول محاسبه می‌شود)
+      const firstUnreadIndex = messages.length - unreadCount;
+      const firstUnreadMsg = messages[firstUnreadIndex];
+
+      if (firstUnreadMsg) {
+        // پیدا کردن المان پیام در DOM از طریق ID و اسکرول به آن
+        const el = document.getElementById(`msg-${firstUnreadMsg.id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "auto", block: "center" });
+          scrolledToUnread = true;
+        }
       }
-    }, 60);
-    return () => clearTimeout(timer);
-  }, [activeConversationId, store.markAsRead]);
+    }
+
+    // اگر پیام نخوانده‌ای نبود یا در DOM پیدا نشد، مثل قبل به انتهای صفحه می‌رویم
+    if (!scrolledToUnread) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+
+    setShowScrollBottom(false);
+
+    // پس از اسکرول، پیام‌ها را خوانده شده علامت می‌زنیم
+    if (unreadCount > 0) {
+      store.markAsRead?.(activeConversation.id);
+    }
+  }, 100);
+
+  return () => clearTimeout(timer);
+  
+  // افزودن `messages.length === 0` باعث می‌شود به محض لود شدن اولین دسته پیام‌ها، اسکرول انجام شود
+}, [activeConversationId, store.markAsRead, messages.length === 0]);
+
 
   // وقتی پیام برای ویرایش در استیت قرار می‌گیرد، متن آن را به باکس ورودی منتقل می‌کنیم
   useEffect(() => {
