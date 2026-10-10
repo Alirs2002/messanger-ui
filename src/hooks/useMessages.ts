@@ -61,16 +61,33 @@ export function useMessages(conversationId: string | null) {
     (detail: ConversationDetail, pageNo: number, convId: string, prepend = false) => {
       // Normalize at the point of ingestion from the API
       const newMessages = detail.messages.content
-      .filter((m) => !isMessageDeleted(m))
-      .map((m) =>
-        normalizeMessage(m, convId)
-      );
+        .filter((m) => !isMessageDeleted(m))
+        .map((m) => normalizeMessage(m, convId));
 
       setState((prev) => {
-        const merged = prepend
-          ? [...newMessages, ...prev.messages]
-          : newMessages;
+        let merged;
+        
+        if (prepend) {
+          // برای بارگذاری پیام‌های قدیمی‌تر: پیام‌های جدید را به ابتدای لیست اضافه می‌کنیم
+          // و پیام‌های تکراری را از لیست قبلی حذف می‌کنیم
+          merged = [
+            ...newMessages,
+            ...prev.messages.filter(
+              (oldMsg) => !newMessages.some((newMsg) => newMsg.id === oldMsg.id)
+            )
+          ];
+        } else {
+          // برای صفحه صفر (آپدیت اولیه از API): پیام‌های جدید را جایگزین پیام‌های مشابه می‌کنیم
+          // و پیام‌های قدیمی‌تر کش شده که در این صفحه نیستند را نگه می‌داریم
+          merged = [
+            ...newMessages,
+            ...prev.messages.filter(
+              (oldMsg) => !newMessages.some((newMsg) => newMsg.id === oldMsg.id)
+            )
+          ];
+        }
 
+        // مرتب‌سازی همه پیام‌ها بر اساس زمان
         const sorted = [...merged].sort(
           (a, b) => toNum(a.timestamp) - toNum(b.timestamp)
         );
@@ -82,7 +99,7 @@ export function useMessages(conversationId: string | null) {
           loading: false,
           loadingMore: false,
           error: null,
-          hasMore: detail.hasPrevious,
+          hasMore: detail.hasPrevious, // یا detail.hasPrevious
           page: pageNo,
         };
       });
@@ -91,6 +108,7 @@ export function useMessages(conversationId: string | null) {
     },
     []
   );
+
 
   useEffect(() => {
     if (!conversationId) return;
