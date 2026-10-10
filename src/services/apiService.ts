@@ -178,13 +178,19 @@ export function isMessageDeleted(raw: BackendMessage | any): boolean {
   const tag = (raw?.deleteTag ?? raw?.deletedTag ?? "")
     .toString()
     .toUpperCase();
+    
   return Boolean(
     raw?.isDeleted === true ||
     raw?.deleted === true ||
+    raw?.deletedAll === true ||     // اضافه شد
+    raw?.deletedForMe === true ||   // اضافه شد
+    raw?.deleteAll === true ||      // اضافه شد (جهت احتیاط)
+    raw?.deleteForMe === true ||    // اضافه شد (جهت احتیاط)
     tag === "FOR_ALL" ||
-    tag === "FOR_ME",
+    tag === "FOR_ME"
   );
 }
+
 
 export function mapMessageToItem(
   raw: BackendMessage | any,

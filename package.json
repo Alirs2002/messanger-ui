@@ -19,7 +19,7 @@
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
     "sockjs-client": "^1.6.1",
-    "uuid": "^14.0.2",
+    "uuid": "^14.0.3",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

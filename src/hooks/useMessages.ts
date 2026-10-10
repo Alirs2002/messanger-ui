@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { messagesApi } from "../services/apiService";
 import type { Message, Conversation, ConversationDetail, PersianDate } from "../types/messenger";
 import { db } from "../services/db";
+import { isMessageDeleted } from '../services/apiService';
 
 const toNum = (t: PersianDate | undefined): number => {
   if (!t) return 0;
@@ -59,7 +60,9 @@ export function useMessages(conversationId: string | null) {
   const applyDetail = useCallback(
     (detail: ConversationDetail, pageNo: number, convId: string, prepend = false) => {
       // Normalize at the point of ingestion from the API
-      const newMessages = detail.messages.content.map((m) =>
+      const newMessages = detail.messages.content
+      .filter((m) => !isMessageDeleted(m))
+      .map((m) =>
         normalizeMessage(m, convId)
       );
 
@@ -109,6 +112,7 @@ export function useMessages(conversationId: string | null) {
 
         if (isSubscribed && cachedRaw.length > 0) {
           const cachedMessages = cachedRaw
+          .filter((m) => !isMessageDeleted(m))
             .map((m) => normalizeMessage(m, conversationId))
             .sort((a, b) => toNum(a.timestamp) - toNum(b.timestamp));
 
