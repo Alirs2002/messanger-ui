@@ -249,6 +249,24 @@ export const conversationsApi = {
     );
   },
 };
+export const forwardMessagesApi = async (
+  messageIds: string[], 
+  opponentIds: string[], 
+  targetType: "PERSONAL" | "GROUP" | "CHANNEL"
+) => {
+  // ساختار بادی دقیقا همان چیزی است که سرور انتظار دارد
+  const payload = {
+    messageId: messageIds,
+    opponentIds: opponentIds,
+    targetType: targetType
+  };
+
+  // استفاده از apiFetch پروژه برای داشتن Base URL و Token به صورت خودکار
+  return await apiFetch<any>("/messages/forward", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
 
 export const deleteMessages = async (
   messageIds: string[],

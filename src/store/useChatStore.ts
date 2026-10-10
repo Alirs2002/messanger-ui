@@ -8,6 +8,7 @@ import type {
 import { authStorage } from "../services/auth";
 import { messagesApi, isMessageDeleted } from "../services/apiService";
 import { v4 as uuidv4 } from "uuid";
+import { forwardMessagesApi } from '../services/apiService';
 
 // اگر mapper پیام حذف‌شده را null برگرداند، آن را حذف می‌کنیم
 // و در غیر این صورت پرچم isDeleted را تضمین می‌کنیم.
@@ -52,7 +53,7 @@ interface ChatStore {
     targetConversationId: string | number,
     message: MessageItem,
     fromChatTitle: string,
-  ) => void;
+  ) => Promise<void>; // تغییر تایپ به Promise به خاطر async بودن
 
   // Conversations Actions
   deleteConversation: (conversationId: string | number) => void;
@@ -118,7 +119,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       id: tempId,
       conversationId: conversationId,
       text: trimmed,
-      createdAt: new Date().toISOString(), // بهتر است استاندارد ذخیره شود، فرمت نمایش سمت کامپوننت انجام شود
+      createdAt: new Date().toISOString(),
       timestamp: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -163,14 +164,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       extra: "",
       forwarderId: "",
       forwarderNickname: "",
-replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
-replyRefMessageText: replyingTo ? replyingTo.text : "",
-// Use senderId from your MessageItem interface
-replyRefUserId: replyingTo && replyingTo.senderId ? String(replyingTo.senderId) : "",
-replyRefUserNickname: replyingTo ? (replyingTo.senderName || "") : "",
-// Since type isn't in your interface, default to "TEXT" for now
-replyRefMessageType: replyingTo ? "TEXT" : "",
-
+      replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
+      replyRefMessageText: replyingTo ? replyingTo.text : "",
+      replyRefUserId: replyingTo && replyingTo.senderId ? String(replyingTo.senderId) : "",
+      replyRefUserNickname: replyingTo ? (replyingTo.senderName || "") : "",
+      replyRefMessageType: replyingTo ? "TEXT" : "",
       replyRefUserAvatarThumbnail: { id: "", url: "" },
       messageState: "SENT",
       opponentIds: [],
@@ -197,10 +195,6 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
     }
   },
 
-  /**
-   * Main Router for incoming STOMP messages.
-   * Dispatches to relevant logic based on `type`.
-   */
   receiveLiveMessage: (
     envelope: SocketEnvelope,
     currentUserId: number | string,
@@ -210,12 +204,10 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
     const { type, content } = envelope;
 
     switch (type.toUpperCase()) {
-      // 1. New incoming message
       case "NEW_MESSAGE":
       case "SEND_MESSAGE":
       case "MESSAGE_SEND":
       case "MESSAGE.SEND": {
-        // تایپ کانتنت را به نوع `any` می‌گیریم تا بتوانیم فیلدهای داینامیک سرور را چک کنیم
         const msgContent = content as any;
         const receivedConversationId =
           msgContent.conversationId || msgContent.chatId;
@@ -243,7 +235,6 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
         const returnedTempId = msgContent.tempId;
 
         if (isMessageDeleted(msgContent)) {
-          // پیام حذف‌شده از سمت سرور رسیده؛ آن را نادیده می‌گیریم
           get().deleteMessage(conversationId, realMessageId || returnedTempId);
           break;
         }
@@ -272,7 +263,6 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
             state.messages[String(conversationId)] ||
             [];
 
-          // ۱. جستجوی پیام موقت قبلی با tempId
           const existingPendingIndex = currentList.findIndex((m) => {
             if (returnedTempId && String(m.id) === String(returnedTempId))
               return true;
@@ -284,7 +274,6 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
           let updatedList: MessageItem[];
 
           if (existingPendingIndex !== -1) {
-            // جایگزینی پیام موقت با پیام تایید شده از سرور
             updatedList = [...currentList];
             updatedList[existingPendingIndex] = {
               ...updatedList[existingPendingIndex],
@@ -293,7 +282,6 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
               status: "delivered",
             };
           } else {
-            // پیام جدید است
             updatedList = [...currentList, newMsg];
           }
 
@@ -319,7 +307,6 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
         break;
       }
 
-      // 2. Edit existing message
       case "EDIT_MESSAGE":
       case "MESSAGE_EDIT": {
         const msgContent = content as any;
@@ -332,7 +319,6 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
         break;
       }
 
-      // 3. Delete message
       case "DELETE_MESSAGE":
       case "MESSAGE_DELETE": {
         const msgContent = content as any;
@@ -344,7 +330,6 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
         break;
       }
 
-      // 4. Conversation / User removed or left
       case "DELETE_CONVERSATION":
       case "LEAVE_CONVERSATION": {
         const msgContent = content as any;
@@ -486,31 +471,48 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
       };
     }),
 
-  forwardMessage: (targetConversationId, message, fromChatTitle) =>
-    set((state) => {
-      const timeNow = new Date().toISOString();
+  forwardMessage: async (targetConversationId, message, fromChatTitle) => {
+    const timeNow = new Date().toISOString();
+    const tempId = Date.now();
 
-      const newMsg: MessageItem = {
-        id: Date.now(),
-        conversationId: targetConversationId,
-        senderId: 1,
-        text: message.text,
-        createdAt: timeNow,
-        isOutgoing: true,
-        isDeleted: false,
-        status: "sent",
-        forwardFrom: {
-          id: String(message.id),
-          name: message.senderName || "ناشناس",
-          chatTitle: fromChatTitle,
-        },
-      };
+    // دریافت وضعیت فعلی Store برای پیدا کردن چت مقصد
+    const state = get();
+    const targetChat = state.conversations.find((c) => String(c.id) === String(targetConversationId));
+    
+    // مشخص کردن نوع چت مقصد
+    let targetType: "PERSONAL" | "GROUP" | "CHANNEL" = "PERSONAL";
+    if (targetChat) {
+      const chatType = (targetChat as any).chatType || (targetChat as any).type;
+      if (chatType?.toUpperCase() === 'GROUP') {
+        targetType = "GROUP";
+      } else if (chatType?.toUpperCase() === 'CHANNEL') {
+        targetType = "CHANNEL";
+      }
+    }
 
+    const newMsg: MessageItem = {
+      id: tempId,
+      conversationId: targetConversationId,
+      senderId: 1, // یا دریافت از state احراز هویت
+      text: message.text,
+      createdAt: timeNow,
+      isOutgoing: true,
+      isDeleted: false,
+      status: "sending", // وضعیت در حال ارسال (آپدیت خوش‌بینانه)
+      forwardFrom: {
+        id: String(message.id),
+        name: message.senderName || "ناشناس",
+        chatTitle: fromChatTitle,
+      },
+    };
+
+    // ۱. آپدیت رابط کاربری به صورت محلی و فوری
+    set((currentState) => {
       const currentMsgs =
-        state.messages[targetConversationId] ||
-        state.messages[String(targetConversationId)] ||
+        currentState.messages[targetConversationId] ||
+        currentState.messages[String(targetConversationId)] ||
         [];
-      const updatedConversations = state.conversations.map((c) =>
+      const updatedConversations = currentState.conversations.map((c) =>
         String(c.id) === String(targetConversationId)
           ? { ...c, lastMessageText: message.text, lastMessageTime: timeNow }
           : c,
@@ -518,12 +520,42 @@ replyRefMessageType: replyingTo ? "TEXT" : "",
 
       return {
         messages: {
-          ...state.messages,
+          ...currentState.messages,
           [targetConversationId]: [...currentMsgs, newMsg],
         },
         conversations: updatedConversations,
       };
-    }),
+    });
+
+    // ۲. ارسال درخواست API به سرور
+    try {
+      await forwardMessagesApi(
+        [String(message.id)],
+        [String(targetConversationId)],
+        targetType
+      );
+
+      // در صورت ارسال موفق، وضعیت پیام را به sent تغییر می‌دهیم
+      set((currentState) => {
+        const currentMsgs =
+          currentState.messages[targetConversationId] ||
+          currentState.messages[String(targetConversationId)] ||
+          [];
+        
+        return {
+          messages: {
+            ...currentState.messages,
+            [targetConversationId]: currentMsgs.map((m: MessageItem) =>
+              m.id === tempId ? { ...m, status: "sent" as const } : m,
+            ),
+          },
+        };
+      });
+    } catch (error) {
+      console.error("Failed to forward message via REST API:", error);
+      // در صورت نیاز می‌توانید پیام موقت را پاک کنید یا وضعیت failed به آن بدهید
+    }
+  },
 
   togglePinConversation: (conversationId) =>
     set((state) => ({
