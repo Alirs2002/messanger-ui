@@ -22,7 +22,7 @@ import { ChatHeaderMenu, type ChatType } from "./ChatHeaderMenu";
 import { ForwardModal } from "./ForwardModal";
 import { UserProfileModal } from "./UserProfileModal";
 import { DeleteMessageModal } from "./DeleteMessageModal";
-import { deleteMessages, editMessage } from "../services/apiService"; // <--- اضافه‌شدن editMessage
+import { deleteMessages, editMessage } from "../services/apiService";
 import type { MessageItem } from "../types/chat";
 import type { Message } from "../types/messenger";
 import { useMessages } from "../hooks/useMessages";
@@ -73,6 +73,7 @@ const stateToStatus = (state?: string): MessageItem["status"] => {
       return undefined;
   }
 };
+
 const mapApiMessage = (
   msg: Message | any,
   currentUserId: string | number | undefined,
@@ -149,106 +150,7 @@ const EMOJI_CATEGORIES = [
     icon: Smile,
     name: "صورتک‌ها",
     emojis: [
-      "😀",
-      "😃",
-      "😄",
-      "😁",
-      "😆",
-      "😅",
-      "😂",
-      "🤣",
-      "🥲",
-      "🥹",
-      "😊",
-      "😇",
-      "🙂",
-      "🙃",
-      "😉",
-      "😌",
-      "😍",
-      "🥰",
-      "😘",
-      "😗",
-      "😋",
-      "😛",
-      "😜",
-      "🤪",
-      "😝",
-      "🤑",
-      "🤗",
-      "🫢",
-      "🫣",
-      "🤫",
-      "🤔",
-      "🫡",
-      "🤐",
-      "🤨",
-      "😐",
-      "😑",
-      "😶",
-      "🫥",
-      "😏",
-      "😒",
-      "🙄",
-      "😬",
-      "😮‍💨",
-      "🤥",
-      "😌",
-      "😴",
-      "😷",
-      "🤒",
-      "🤕",
-      "🤢",
-      "🤮",
-      "🤧",
-      "🥵",
-      "🥶",
-      "🥴",
-      "😵",
-      "😵‍💫",
-      "🤯",
-      "🤠",
-      "🥳",
-      "🥸",
-      "😎",
-      "🤓",
-      "🧐",
-      "😕",
-      "🫤",
-      "😟",
-      "🙁",
-      "😮",
-      "😯",
-      "😲",
-      "😳",
-      "🥺",
-      "🥹",
-      "😦",
-      "😧",
-      "😨",
-      "😰",
-      "😥",
-      "😢",
-      "😭",
-      "😱",
-      "😖",
-      "😣",
-      "😞",
-      "😓",
-      "😩",
-      "😫",
-      "🥱",
-      "😤",
-      "😡",
-      "😠",
-      "🤬",
-      "😈",
-      "👿",
-      "💀",
-      "☠️",
-      "💩",
-      "🤡",
-      "👻",
+      "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "🥲", "🥹", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗", "🫢", "🫣", "🤫", "🤔", "🫡", "🤐", "🤨", "😐", "😑", "😶", "🫥", "😏", "😒", "🙄", "😬", "😮‍💨", "🤥", "😌", "😴", "😷", "🤒", "🤕", "🤢", "🤮", "🤧", "🥵", "🥶", "🥴", "😵", "😵‍💫", "🤯", "🤠", "🥳", "🥸", "😎", "🤓", "🧐", "😕", "🫤", "😟", "🙁", "😮", "😯", "😲", "😳", "🥺", "🥹", "😦", "😧", "😨", "😰", "😥", "😢", "😭", "😱", "😖", "😣", "😞", "😓", "😩", "😫", "🥱", "😤", "😡", "😠", "🤬", "😈", "👿", "💀", "☠️", "💩", "🤡", "👻",
     ],
   },
   {
@@ -256,56 +158,7 @@ const EMOJI_CATEGORIES = [
     icon: ThumbsUp,
     name: "دست‌ها و بدن",
     emojis: [
-      "👋",
-      "🤚",
-      "🖐️",
-      "✋",
-      "🖖",
-      "🫱",
-      "🫲",
-      "🫸",
-      "🫷",
-      "🫳",
-      "🫴",
-      "👌",
-      "🤌",
-      "🤏",
-      "✌️",
-      "🤞",
-      "🫰",
-      "🤟",
-      "🤘",
-      "🤙",
-      "👈",
-      "👉",
-      "👆",
-      "🖕",
-      "👇",
-      "☝️",
-      "👍",
-      "👎",
-      "✊",
-      "👊",
-      "🤛",
-      "🤜",
-      "👏",
-      "🙌",
-      "🫶",
-      "👐",
-      "🤲",
-      "🤝",
-      "🙏",
-      "✍️",
-      "💪",
-      "🦾",
-      "🦿",
-      "🦵",
-      "🦶",
-      "👂",
-      "🦻",
-      "👃",
-      "🧠",
-      "🫀",
+      "👋", "🤚", "🖐️", "✋", "🖖", "🫱", "🫲", "🫸", "🫷", "🫳", "🫴", "👌", "🤌", "🤏", "✌️", "🤞", "🫰", "🤟", "🤘", "🤙", "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊", "🤛", "🤜", "👏", "🙌", "🫶", "👐", "🤲", "🤝", "🙏", "✍️", "💪", "🦾", "🦿", "🦵", "🦶", "👂", "🦻", "👃", "🧠", "🫀",
     ],
   },
   {
@@ -313,36 +166,7 @@ const EMOJI_CATEGORIES = [
     icon: Heart,
     name: "قلب‌ها و عواطف",
     emojis: [
-      "❤️",
-      "🧡",
-      "💛",
-      "💚",
-      "💙",
-      "💜",
-      "🖤",
-      "🤍",
-      "🤎",
-      "💔",
-      "❤️‍🔥",
-      "❤️‍🩹",
-      "❣️",
-      "💕",
-      "💞",
-      "💓",
-      "💗",
-      "💖",
-      "💘",
-      "💝",
-      "💟",
-      "💌",
-      "💋",
-      "💯",
-      "💢",
-      "💥",
-      "💫",
-      "💦",
-      "💨",
-      "🕳️",
+      "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟", "💌", "💋", "💯", "💢", "💥", "💫", "💦", "💨", "🕳️",
     ],
   },
   {
@@ -350,46 +174,7 @@ const EMOJI_CATEGORIES = [
     icon: Sparkles,
     name: "نمادها و علامت‌ها",
     emojis: [
-      "✨",
-      "⭐",
-      "🌟",
-      "⚡",
-      "🔥",
-      "🎉",
-      "🎊",
-      "🎯",
-      "🏆",
-      "🥇",
-      "🥈",
-      "🥉",
-      "🎁",
-      "🎈",
-      "💡",
-      "🔔",
-      "📢",
-      "💬",
-      "💭",
-      "☕",
-      "🍕",
-      "🍔",
-      "🍟",
-      "🍰",
-      "🚀",
-      "✈️",
-      "🚗",
-      "🛵",
-      "💻",
-      "📱",
-      "✅",
-      "❌",
-      "❓",
-      "❗",
-      "⚠️",
-      "⛔",
-      "🟢",
-      "🔴",
-      "🔵",
-      "🟡",
+      "✨", "⭐", "🌟", "⚡", "🔥", "🎉", "🎊", "🎯", "🏆", "🥇", "🥈", "🥉", "🎁", "🎈", "💡", "🔔", "📢", "💬", "💭", "☕", "🍕", "🍔", "🍟", "🍰", "🚀", "✈️", "🚗", "🛵", "💻", "📱", "✅", "❌", "❓", "❗", "⚠️", "⛔", "🟢", "🔴", "🔵", "🟡",
     ],
   },
 ];
@@ -535,24 +320,9 @@ export const ChatArea: React.FC = () => {
     hasMore,
     loadOlderMessages,
     refresh: refreshMessages,
+    updateMessageOptimistically // 🌟 متد آپدیت استخراج شد
   } = useMessages(apiConversationId);
 
-  // const currentUserId = useCurrentUserUuid();
-
-  // const mappedApiMessages: MessageItem[] = apiMessages.map((m) =>
-  //   mapApiMessage(
-  //     m,
-  //     currentUserId,
-  //     apiConversationId ?? undefined,
-  //     apiMessages,
-  //   ),
-  // );
-
-  // const localMessages: MessageItem[] = activeConversationId
-  //   ? messages[activeConversationId] ||
-  //     messages[String(activeConversationId)] ||
-  //     []
-  //   : [];
   const currentUserId = useCurrentUserUuid();
 
   const localMessages: MessageItem[] = activeConversationId
@@ -570,7 +340,7 @@ export const ChatArea: React.FC = () => {
       apiMessages,
     );
 
-    // 🌟 همگام‌سازی آنی: بررسی اینکه آیا این پیام همین الان به صورت محلی ویرایش شده است یا نه
+    // همگام‌سازی آنی: بررسی اینکه آیا این پیام همین الان به صورت محلی ویرایش شده است یا نه
     const localVersion = localMessages.find(
       (lm) => String(lm.id) === String(baseMsg.id),
     );
@@ -632,49 +402,47 @@ export const ChatArea: React.FC = () => {
     if (isSearching) searchInputRef.current?.focus();
   }, [isSearching]);
 
-useEffect(() => {
-  if (editingMessage || !activeConversation) return;
-  
-  // اگر هنوز پیام‌ها لود نشده‌اند، صبر می‌کنیم
-  if (messages.length === 0) return;
+  useEffect(() => {
+    if (editingMessage || !activeConversation) return;
+    
+    // اگر هنوز پیام‌ها لود نشده‌اند، صبر می‌کنیم
+    if (messages.length === 0) return;
 
-  const timer = setTimeout(() => {
-    const unreadCount = (activeConversation as any).unreadCount ?? 0;
-    let scrolledToUnread = false;
+    const timer = setTimeout(() => {
+      const unreadCount = (activeConversation as any).unreadCount ?? 0;
+      let scrolledToUnread = false;
 
-    // بررسی اینکه آیا پیام خوانده نشده داریم و تعداد پیام‌های لود شده از آنها بیشتر است یا خیر
-    if (unreadCount > 0 && messages.length >= unreadCount) {
-      // پیدا کردن ایندکس اولین پیام خوانده نشده (از آخر به اول محاسبه می‌شود)
-      const firstUnreadIndex = messages.length - unreadCount;
-      const firstUnreadMsg = messages[firstUnreadIndex];
+      // بررسی اینکه آیا پیام خوانده نشده داریم و تعداد پیام‌های لود شده از آنها بیشتر است یا خیر
+      if (unreadCount > 0 && messages.length >= unreadCount) {
+        // پیدا کردن ایندکس اولین پیام خوانده نشده (از آخر به اول محاسبه می‌شود)
+        const firstUnreadIndex = messages.length - unreadCount;
+        const firstUnreadMsg = messages[firstUnreadIndex];
 
-      if (firstUnreadMsg) {
-        // پیدا کردن المان پیام در DOM از طریق ID و اسکرول به آن
-        const el = document.getElementById(`msg-${firstUnreadMsg.id}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "auto", block: "center" });
-          scrolledToUnread = true;
+        if (firstUnreadMsg) {
+          // پیدا کردن المان پیام در DOM از طریق ID و اسکرول به آن
+          const el = document.getElementById(`msg-${firstUnreadMsg.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "auto", block: "center" });
+            scrolledToUnread = true;
+          }
         }
       }
-    }
 
-    // اگر پیام نخوانده‌ای نبود یا در DOM پیدا نشد، مثل قبل به انتهای صفحه می‌رویم
-    if (!scrolledToUnread) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-    }
+      // اگر پیام نخوانده‌ای نبود یا در DOM پیدا نشد، مثل قبل به انتهای صفحه می‌رویم
+      if (!scrolledToUnread) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      }
 
-    setShowScrollBottom(false);
+      setShowScrollBottom(false);
 
-    // پس از اسکرول، پیام‌ها را خوانده شده علامت می‌زنیم
-    if (unreadCount > 0) {
-      store.markAsRead?.(activeConversation.id);
-    }
-  }, 100);
+      // پس از اسکرول، پیام‌ها را خوانده شده علامت می‌زنیم
+      if (unreadCount > 0) {
+        store.markAsRead?.(activeConversation.id);
+      }
+    }, 100);
 
-  return () => clearTimeout(timer);
-  
-  // افزودن `messages.length === 0` باعث می‌شود به محض لود شدن اولین دسته پیام‌ها، اسکرول انجام شود
-}, [activeConversationId, store.markAsRead, messages.length === 0]);
+    return () => clearTimeout(timer);
+  }, [activeConversationId, store.markAsRead, messages.length === 0]);
 
 
   // وقتی پیام برای ویرایش در استیت قرار می‌گیرد، متن آن را به باکس ورودی منتقل می‌کنیم
@@ -847,26 +615,24 @@ useEffect(() => {
       };
       const backendTargetType = targetTypeMap[currentChatType] || "PERSONAL";
 
+      const targetMessageId = String(deleteModal.message.id);
 
-const targetMessageId = String(deleteModal.message.id);
+      await deleteMessages(
+        [targetMessageId],
+        tagDelete,
+        backendTargetType,
+      );
 
-await deleteMessages(
-  [targetMessageId],
-  tagDelete,
-  backendTargetType,
-);
+      // ۱. حذف پیام از استور محلی Zustand
+      if (store.deleteMessage) {
+        store.deleteMessage(activeConversation.id, deleteModal.message.id);
+        store.deleteMessage(activeConversation.id, targetMessageId);
+      }
 
-// ۱. حذف پیام از استور محلی Zustand
-if (store.deleteMessage) {
-  store.deleteMessage(activeConversation.id, deleteModal.message.id);
-  store.deleteMessage(activeConversation.id, targetMessageId);
-}
-
-// ۲. رفرش کردن پیام‌های دریافتی از هوک (جایگزین setMessages)
-if (typeof refreshMessages === "function") {
-  refreshMessages();
-}
-
+      // ۲. رفرش کردن پیام‌های دریافتی از هوک (جایگزین setMessages)
+      if (typeof refreshMessages === "function") {
+        refreshMessages();
+      }
 
     } catch (err) {
       console.error("خطا در حذف پیام:", err);
@@ -882,7 +648,7 @@ if (typeof refreshMessages === "function") {
     closeContextMenu();
   };
 
-  // ارسال یا ویرایش پیام (با متد async برای پشتیبانی از درخواست شبکه)
+  // ارسال یا ویرایش پیام
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !activeConversation) return;
@@ -890,36 +656,32 @@ if (typeof refreshMessages === "function") {
 
     if (editingMessage && store.editMessage) {
       try {
-        const targetTypeMap: Record<string, "PERSONAL" | "GROUP" | "CHANNEL"> =
-          {
-            pv: "PERSONAL",
-            group: "GROUP",
-            channel: "CHANNEL",
-          };
+        const targetTypeMap: Record<string, "PERSONAL" | "GROUP" | "CHANNEL"> = {
+          pv: "PERSONAL",
+          group: "GROUP",
+          channel: "CHANNEL",
+        };
         const backendTargetType = targetTypeMap[currentChatType] || "PERSONAL";
 
-        // ارسال درخواست آپدیت به سمت سرور
+        // ۱. ارسال درخواست آپدیت به سمت سرور
         await editMessage(
           String(editingMessage.id),
           backendTargetType,
           messageText.trim(),
         );
 
-        // آپدیت محلی استیت
-        // store.editMessage(
-        //   activeConversation.id,
-        //   editingMessage.id,
-        //   messageText.trim(),
-        // );
+        // ۲. آپدیت محلی استیت Zustand
         store.editMessage(
-  String(activeConversationId), // یا String(activeConversation.id)
-  String(editingMessage.id), 
-  messageText.trim()
-);
+          String(activeConversationId),
+          String(editingMessage.id), 
+          messageText.trim()
+        );
 
-        //store.editMessage(String(editingMessage.id), messageText.trim());
+        // ۳. 🌟 آپدیت فوری استیت React برای نمایش در لحظه بدون نیاز به رفرش شبکه
+        if (updateMessageOptimistically) {
+          updateMessageOptimistically(editingMessage.id, messageText.trim());
+        }
 
-        //refreshMessages();
       } catch (error) {
         console.error("خطا در ویرایش پیام:", error);
         alert("ویرایش پیام با مشکل مواجه شد.");

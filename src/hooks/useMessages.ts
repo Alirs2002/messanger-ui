@@ -204,6 +204,22 @@ export function useMessages(conversationId: string | null) {
       }
     }
   }, [conversationId, applyDetail]);
+  // این متد برای آپدیت فوری استیت React است، بدون نیاز به رفرش از بک‌اند
+    // اضافه کردن این تابع قبل از return در هوک useMessages
+// داخل بدنه اصلی هوک (مثلاً قبل از return)
+ const updateMessageOptimistically = useCallback((messageId: string | number, newText: string) => {
+  setState((prev) => {
+    const updatedMessages = prev.messages.map((msg) => {
+      // فقط از msg.id استفاده کنید
+      if (String(msg.id) === String(messageId)) {
+        return { ...msg, text: newText, isEdited: true };
+      }
+      return msg;
+    });
+    return { ...prev, messages: updatedMessages };
+  });
+}, []);
+
 
   return {
     messages: state.messages,
@@ -211,6 +227,7 @@ export function useMessages(conversationId: string | null) {
     opponentStatus: state.opponentStatus,
     loading: state.loading,
     loadingMore: state.loadingMore,
+    updateMessageOptimistically,
     error: state.error,
     hasMore: state.hasMore,
     loadOlderMessages,
