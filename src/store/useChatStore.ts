@@ -163,11 +163,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       extra: "",
       forwarderId: "",
       forwarderNickname: "",
-      replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
-      replyRefMessageText: replyingTo ? replyingTo.text : "",
-      replyRefUserId: "",
-      replyRefUserNickname: replyingTo ? replyingTo.senderName || "" : "",
-      replyRefMessageType: "",
+replyRefMessageId: replyingTo ? String(replyingTo.id) : "",
+replyRefMessageText: replyingTo ? replyingTo.text : "",
+// Use senderId from your MessageItem interface
+replyRefUserId: replyingTo && replyingTo.senderId ? String(replyingTo.senderId) : "",
+replyRefUserNickname: replyingTo ? (replyingTo.senderName || "") : "",
+// Since type isn't in your interface, default to "TEXT" for now
+replyRefMessageType: replyingTo ? "TEXT" : "",
+
       replyRefUserAvatarThumbnail: { id: "", url: "" },
       messageState: "SENT",
       opponentIds: [],
