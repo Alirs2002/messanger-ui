@@ -847,15 +847,27 @@ useEffect(() => {
       };
       const backendTargetType = targetTypeMap[currentChatType] || "PERSONAL";
 
-      await deleteMessages(
-        [String(deleteModal.message.id)],
-        tagDelete,
-        backendTargetType,
-      );
 
-      if (store.deleteMessage) {
-        store.deleteMessage(activeConversation.id, deleteModal.message.id);
-      }
+const targetMessageId = String(deleteModal.message.id);
+
+await deleteMessages(
+  [targetMessageId],
+  tagDelete,
+  backendTargetType,
+);
+
+// ۱. حذف پیام از استور محلی Zustand
+if (store.deleteMessage) {
+  store.deleteMessage(activeConversation.id, deleteModal.message.id);
+  store.deleteMessage(activeConversation.id, targetMessageId);
+}
+
+// ۲. رفرش کردن پیام‌های دریافتی از هوک (جایگزین setMessages)
+if (typeof refreshMessages === "function") {
+  refreshMessages();
+}
+
+
     } catch (err) {
       console.error("خطا در حذف پیام:", err);
       alert("مشکلی در حذف پیام به وجود آمد.");
