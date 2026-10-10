@@ -906,12 +906,20 @@ if (typeof refreshMessages === "function") {
         );
 
         // آپدیت محلی استیت
+        // store.editMessage(
+        //   activeConversation.id,
+        //   editingMessage.id,
+        //   messageText.trim(),
+        // );
         store.editMessage(
-          activeConversation.id,
-          editingMessage.id,
-          messageText.trim(),
-        );
-        refreshMessages();
+  String(activeConversationId), // یا String(activeConversation.id)
+  String(editingMessage.id), 
+  messageText.trim()
+);
+
+        //store.editMessage(String(editingMessage.id), messageText.trim());
+
+        //refreshMessages();
       } catch (error) {
         console.error("خطا در ویرایش پیام:", error);
         alert("ویرایش پیام با مشکل مواجه شد.");
